@@ -1641,7 +1641,7 @@ function abrirProtocolo(id) {
   const iframeWrap = document.getElementById('pm-iframe-wrap');
   const modalEl    = document.querySelector('#protocol-modal .modal');
   if (proto.pagina) {
-    iframeEl.src = `../docs/informativos/${proto.pagina}`;
+    iframeEl.src = `informativos/${proto.pagina}`;
     aviso.style.display  = 'flex';
     footer.style.display = 'block';
     iframeWrap.style.display = 'none';
