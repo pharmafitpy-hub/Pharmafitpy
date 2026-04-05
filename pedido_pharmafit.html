@@ -541,7 +541,9 @@
   }
 
   /* ── FILTERS & SORT ── */
-  .filter-area { margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px; }
+  .filter-area { margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px; }
+  .filter-group { display: flex; flex-direction: column; gap: 6px; }
+  .filter-group-label { font-size: .65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--gray); font-weight: 700; }
   .lab-filters { display:flex; flex-wrap:wrap; gap:8px; }
   .lab-btn {
     background: var(--card-bg); border: 1px solid var(--border);
@@ -696,7 +698,12 @@
     cursor: pointer; font-size: .82rem; font-weight: 600; transition: all .2s;
   }
   .btn-fechar-info:hover { background: var(--danger); border-color: var(--danger); }
-  #info-iframe { flex: 1; border: none; background: #fff; }
+  .info-iframe-wrap { flex: 1; position: relative; overflow: hidden; -webkit-overflow-scrolling: touch; }
+  #info-iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; background: #fff; }
+  @media (max-width: 767px) {
+    .info-overlay { padding: 0; }
+    .info-overlay-inner { height: 100%; max-width: 100%; border-radius: 0; border: none; }
+  }
 
   /* ── SUCCESS ── */
   .success-screen {
@@ -916,7 +923,14 @@
     <div id="alert2" class="alert">⚠️ Selecione pelo menos 1 produto para continuar.</div>
 
     <div class="filter-area">
-      <div class="lab-filters" id="lab-filters"></div>
+      <div class="filter-group">
+        <div class="filter-group-label">Laboratórios</div>
+        <div class="lab-filters" id="lab-filters"></div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-group-label">Propriedades</div>
+        <div class="lab-filters" id="tag-filters"></div>
+      </div>
       <div class="sort-bar">
         <span class="sort-label">Ordenar:</span>
         <button class="sort-btn active" data-sort="alpha" onclick="setSort('alpha')">A–Z</button>
@@ -1153,7 +1167,9 @@
       <span id="info-overlay-title">Informativo do produto</span>
       <button class="btn-fechar-info" onclick="fecharInformativo()">✕ Fechar informativo</button>
     </div>
-    <iframe id="info-iframe" src=""></iframe>
+    <div class="info-iframe-wrap">
+      <iframe id="info-iframe" src="" allowfullscreen></iframe>
+    </div>
   </div>
 </div>
 
@@ -1204,8 +1220,9 @@ let currentStep = 1;
 let selectedPayment = '';
 let cart = {};             // { productId: qty }
 let selectedVariants = {}; // { productId: variantIndex }
-let activeTagFilter = 'todos';
-let activeSort = 'alpha';
+let activeLabFilter  = 'todos';
+let activeTagFilter  = 'todos';
+let activeSort       = 'alpha';
 let countdownInterval = null;
 
 // ─── CUPOM DE BONIFICAÇÃO ────────────────────────────────────────────────────
