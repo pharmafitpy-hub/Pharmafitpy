@@ -541,10 +541,18 @@
   }
 
   /* ── FILTERS & SORT ── */
-  .filter-area { margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px; }
-  .filter-group { display: flex; flex-direction: column; gap: 6px; }
-  .filter-group-label { font-size: .65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--gray); font-weight: 700; }
-  .lab-filters { display:flex; flex-wrap:wrap; gap:8px; }
+  .filter-area { margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px; }
+  .filter-group { display: flex; flex-direction: column; gap: 0; }
+  .filter-group-header {
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; padding: 7px 0; border-bottom: 1px solid var(--border);
+    user-select: none;
+  }
+  .filter-group-header:hover .filter-group-label { color: var(--white); }
+  .filter-group-label { font-size: .65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--gray); font-weight: 700; transition: color .15s; }
+  .filter-arrow { font-size: .65rem; color: var(--gray); transition: transform .2s; }
+  .filter-arrow.open { transform: rotate(180deg); }
+  .lab-filters { display:flex; flex-wrap:wrap; gap:8px; padding: 10px 0 4px; }
   .lab-btn {
     background: var(--card-bg); border: 1px solid var(--border);
     color: var(--gray); padding: 6px 16px; border-radius: 20px;
@@ -924,12 +932,18 @@
 
     <div class="filter-area">
       <div class="filter-group">
-        <div class="filter-group-label">Laboratórios</div>
-        <div class="lab-filters" id="lab-filters"></div>
+        <div class="filter-group-header" onclick="toggleFilterGroup('lab-filters','arrow-lab')">
+          <span class="filter-group-label">Laboratórios</span>
+          <span class="filter-arrow" id="arrow-lab">▼</span>
+        </div>
+        <div class="lab-filters" id="lab-filters" style="display:none"></div>
       </div>
       <div class="filter-group">
-        <div class="filter-group-label">Propriedades</div>
-        <div class="lab-filters" id="tag-filters"></div>
+        <div class="filter-group-header" onclick="toggleFilterGroup('tag-filters','arrow-tag')">
+          <span class="filter-group-label">Propriedades</span>
+          <span class="filter-arrow" id="arrow-tag">▼</span>
+        </div>
+        <div class="lab-filters" id="tag-filters" style="display:none"></div>
       </div>
       <div class="sort-bar">
         <span class="sort-label">Ordenar:</span>
@@ -1308,12 +1322,31 @@ function displayTag(t) {
 }
 
 function renderFilters() {
+  const labs = [...new Set(CATALOG.filter(p => p.lab).map(p => p.lab))].sort();
+  document.getElementById('lab-filters').innerHTML = ['Todos', ...labs].map(l => {
+    const val = l === 'Todos' ? 'todos' : l;
+    return `<button class="lab-btn ${val === activeLabFilter ? 'active' : ''}" onclick="setLabFilter('${val}')">${l}</button>`;
+  }).join('');
+
   const allTags = [...new Set(CATALOG.flatMap(p => p.tags))].sort();
-  const bar = document.getElementById('lab-filters');
-  bar.innerHTML = ['todos', ...allTags].map(tag => {
+  document.getElementById('tag-filters').innerHTML = ['todos', ...allTags].map(tag => {
     const label = tag === 'todos' ? 'Todos' : displayTag(tag);
     return `<button class="lab-btn ${tag === activeTagFilter ? 'active' : ''}" onclick="setTagFilter('${tag}')">${label}</button>`;
   }).join('');
+}
+
+function toggleFilterGroup(filterId, arrowId) {
+  const el = document.getElementById(filterId);
+  const arrow = document.getElementById(arrowId);
+  const open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'flex';
+  arrow.classList.toggle('open', !open);
+}
+
+function setLabFilter(lab) {
+  activeLabFilter = lab;
+  renderFilters();
+  renderProducts();
 }
 
 function setTagFilter(tag) {
@@ -1495,7 +1528,10 @@ function changeVariantQty(id, varIdx, delta) {
 function renderProducts() {
   const grid = document.getElementById('products-grid');
   grid.innerHTML = '';
-  let list = activeTagFilter === 'todos' ? [...CATALOG] : CATALOG.filter(p => p.tags.includes(activeTagFilter));
+  let list = CATALOG.filter(p =>
+    (activeLabFilter === 'todos' || p.lab === activeLabFilter) &&
+    (activeTagFilter === 'todos' || p.tags.includes(activeTagFilter))
+  );
   if (activeSort === 'alpha') {
     list.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   } else if (activeSort === 'price-asc') {
@@ -1518,7 +1554,7 @@ function renderProducts() {
     const stockAtual = temVariantes ? getVariantStock(p.id) : p.stock;
     const semEstoque = stockAtual === 0;
     const estoqueLabel = semEstoque
-      ? `<span style="color:#e74c3c;font-size:.7rem;font-weight:700">⚠️ Sem estoque</span>`
+      ? `<span style="color:#f39c12;font-size:.7rem;font-weight:700">🕐 Sem estoque — chega em até 7 dias</span>`
       : stockAtual <= 10
         ? `<span style="color:#f39c12;font-size:.7rem">⚡ Últimas ${stockAtual} un.</span>`
         : `<span style="color:var(--accent);font-size:.7rem">✅ ${stockAtual} em estoque</span>`;
@@ -1542,7 +1578,7 @@ function renderProducts() {
           const vStock = parseInt(v.estoque) || 0;
           const semV = vStock === 0;
           const vStockLabel = semV
-            ? `<span class="vr-stock out">⚠️ Sem estoque</span>`
+            ? `<span class="vr-stock" style="color:#f39c12;font-size:.68rem">🕐 Chega em 7 dias</span>`
             : vStock <= 5
               ? `<span class="vr-stock low">⚡ ${vStock} un.</span>`
               : `<span class="vr-stock ok">✅ ${vStock} un.</span>`;
@@ -1552,7 +1588,7 @@ function renderProducts() {
             ? `<span class="vr-price-old">R$ ${vPrice.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
                <span class="vr-price promo">R$ ${vPromo.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>`
             : `<span class="vr-price">R$ ${vPrice.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>`;
-          return `<div class="variant-row ${semV ? 'vr-disabled' : ''}">
+          return `<div class="variant-row">
             <div class="vr-info">
               <span class="vr-dose">${v.dose}</span>
               <div class="vr-price-row">${vPromoHtml}${vStockLabel}</div>
@@ -1578,15 +1614,15 @@ function renderProducts() {
           <span class="pc-subtotal" id="sub-${p.id}">= R$ ${subtotal}</span>
         </div>` : '';
 
-    const cardOnclick = temVariantes ? '' : (semEstoque ? '' : `toggleProduct('${p.id}')`);
+    const cardOnclick = temVariantes ? '' : `toggleProduct('${p.id}')`;
     const cardSelected = temVariantes
       ? p.variantes.some((_, i) => (cart[`${p.id}__${i}`] || 0) > 0)
       : isSelected;
 
     grid.innerHTML += `
-      <div class="product-card ${cardSelected ? 'selected' : ''} ${semEstoque ? 'disabled' : ''} ${promoAtiva ? 'promo-ativa' : ''}"
+      <div class="product-card ${cardSelected ? 'selected' : ''} ${promoAtiva ? 'promo-ativa' : ''}"
            id="pc-${p.id}" onclick="${cardOnclick}"
-           style="${!temVariantes && semEstoque ? 'opacity:.5;cursor:not-allowed' : ''}">
+           style="">
         ${promoRibbon}
         <div class="pc-header">
           <span class="pc-icon">${p.icon}</span>
