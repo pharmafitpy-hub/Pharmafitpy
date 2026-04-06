@@ -1296,6 +1296,7 @@ async function carregarProdutos() {
       conc:        p.conc,
       price:       parseFloat(p.preco) || 0,
       stock:       parseInt(p.estoque) || 0,
+      tags:        Array.isArray(p.tags) ? p.tags : [],
       categoria:   p.categoria ? String(p.categoria).trim().toLowerCase() : '',
       lab:         p.lab || '',
       variantes:   (Array.isArray(p.variantes) && p.variantes.length > 0 && p.variantes[0].dose)
