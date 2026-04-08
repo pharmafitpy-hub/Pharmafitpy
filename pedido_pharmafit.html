@@ -2111,11 +2111,22 @@ function goStep(n) {
   if (n > 2 && !validateStep2()) return;
   if (n > 3 && !validateStep3()) return;
 
-  // Ao avançar do passo 1 → 2: salva/atualiza cadastro no Sheets
-  if (n === 2) {
-    const cpfLimpo = v('f_documento').replace(/\D/g,'');
-    lpSetLogado(v('f_clinica'), v('f_responsavel'));
-    document.getElementById('lp-ja-tem-conta').style.display = 'none';
+  // Ao avançar do passo 1 → 2: verifica duplicata e cadastra
+  if (n === 2) { _goStep2(); return; }
+
+  _aplicarStep(n);
+}
+
+async function _goStep2() {
+  const btn = document.querySelector('#panel1 .btn-next');
+  const alertEl = document.getElementById('alert1');
+  const cpfLimpo = v('f_documento').replace(/\D/g,'');
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Verificando...';
+  alertEl.classList.remove('show');
+
+  try {
     const p = new URLSearchParams({
       action:      'cadastrar',
       clinica:     v('f_clinica'),
@@ -2127,9 +2138,33 @@ function goStep(n) {
       estado:      v('f_estado'),
       endereco:    v('f_endereco')
     });
-    fetch(`${SHEETS_URL}?${p.toString()}`, { method:'GET', mode:'no-cors' }).catch(()=>{});
+    const res  = await fetch(`${SHEETS_URL}?${p.toString()}`);
+    const data = await res.json();
+
+    if (!data.ok) {
+      const msgs = {
+        cpf:      '⚠️ Este CPF já está cadastrado. Use "Já sou cadastrado" para entrar.',
+        email:    '⚠️ Este e-mail já está cadastrado. Use "Já sou cadastrado" para entrar.',
+        telefone: '⚠️ Este telefone já está cadastrado. Use "Já sou cadastrado" para entrar.',
+      };
+      alertEl.textContent = msgs[data.duplicado] || '⚠️ ' + (data.erro || 'Erro ao cadastrar.');
+      alertEl.classList.add('show');
+      btn.disabled = false;
+      btn.textContent = 'Continuar para os Produtos →';
+      return;
+    }
+  } catch(e) {
+    // erro de rede: avança mesmo assim (não bloqueia pedido por falha de rede)
   }
 
+  btn.disabled = false;
+  btn.textContent = 'Continuar para os Produtos →';
+  lpSetLogado(v('f_clinica'), v('f_responsavel'));
+  document.getElementById('lp-ja-tem-conta').style.display = 'none';
+  _aplicarStep(2);
+}
+
+function _aplicarStep(n) {
   // Atualiza stepper visual
   for (let i = 1; i <= 4; i++) {
     const s = document.getElementById('s' + i);
