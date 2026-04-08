@@ -2111,6 +2111,40 @@ function goStep(n) {
   if (n > 2 && !validateStep2()) return;
   if (n > 3 && !validateStep3()) return;
 
+  // Ao avançar do passo 1 → 2: salva/atualiza cadastro do cliente
+  if (n === 2) {
+    const cpfLimpo = v('f_documento').replace(/\D/g,'');
+    const sessionData = {
+      cpf:      cpfLimpo,
+      nome:     v('f_clinica'),
+      apelido:  v('f_responsavel'),
+      telefone: v('f_telefone'),
+      email:    v('f_email'),
+      cidade:   v('f_cidade'),
+      estado:   v('f_estado'),
+      endereco: v('f_endereco')
+    };
+    // Persiste na sessão local
+    localStorage.setItem(LP_KEY, JSON.stringify(sessionData));
+    lpSetLogado(sessionData.nome, sessionData.apelido);
+    document.getElementById('lp-ja-tem-conta').style.display = 'none';
+    // Fire-and-forget: salva na aba Clientes do Sheets
+    if (cpfLimpo.length === 11) {
+      const p = new URLSearchParams({
+        action:     'cadastrar',
+        clinica:    sessionData.nome,
+        responsavel: sessionData.apelido,
+        telefone:   sessionData.telefone,
+        email:      sessionData.email,
+        cpf:        cpfLimpo,
+        cidade:     sessionData.cidade,
+        estado:     sessionData.estado,
+        endereco:   sessionData.endereco
+      });
+      fetch(`${SHEETS_URL}?${p.toString()}`, { method:'GET', mode:'no-cors' }).catch(()=>{});
+    }
+  }
+
   // Atualiza stepper visual
   for (let i = 1; i <= 4; i++) {
     const s = document.getElementById('s' + i);
