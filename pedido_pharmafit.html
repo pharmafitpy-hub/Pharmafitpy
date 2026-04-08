@@ -2719,6 +2719,7 @@ async function lpEntrar() {
       _clienteJaLogado = true;
       lpShowForm();
       document.getElementById('lp-ja-tem-conta').style.display = 'none';
+      _aplicarStep(2);
     } else {
       document.getElementById('lp-erro').innerHTML = '⚠️ Não encontrado. <span class="lp-link" onclick="lpShowForm()">Preencher manualmente</span>';
       document.getElementById('lp-erro').style.display = 'block';
