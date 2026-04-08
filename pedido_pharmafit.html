@@ -2129,20 +2129,18 @@ function goStep(n) {
     lpSetLogado(sessionData.nome, sessionData.apelido);
     document.getElementById('lp-ja-tem-conta').style.display = 'none';
     // Fire-and-forget: salva na aba Clientes do Sheets
-    if (cpfLimpo.length === 11) {
-      const p = new URLSearchParams({
-        action:     'cadastrar',
-        clinica:    sessionData.nome,
-        responsavel: sessionData.apelido,
-        telefone:   sessionData.telefone,
-        email:      sessionData.email,
-        cpf:        cpfLimpo,
-        cidade:     sessionData.cidade,
-        estado:     sessionData.estado,
-        endereco:   sessionData.endereco
-      });
-      fetch(`${SHEETS_URL}?${p.toString()}`, { method:'GET', mode:'no-cors' }).catch(()=>{});
-    }
+    const p = new URLSearchParams({
+      action:      'cadastrar',
+      clinica:     sessionData.nome,
+      responsavel: sessionData.apelido,
+      telefone:    sessionData.telefone,
+      email:       sessionData.email,
+      cpf:         cpfLimpo,
+      cidade:      sessionData.cidade,
+      estado:      sessionData.estado,
+      endereco:    sessionData.endereco
+    });
+    fetch(`${SHEETS_URL}?${p.toString()}`, { method:'GET', mode:'no-cors' }).catch(()=>{});
   }
 
   // Atualiza stepper visual
