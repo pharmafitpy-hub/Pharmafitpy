@@ -1554,8 +1554,13 @@ function startCountdowns() {
   countdownInterval = setInterval(() => {
     CATALOG.forEach(p => {
       if (!isPromoAtiva(p)) return;
+      const txt = getCountdown(p.promo_fim);
+      // card do catálogo principal
       const el = document.getElementById('countdown-' + p.id);
-      if (el) el.textContent = getCountdown(p.promo_fim);
+      if (el) el.textContent = txt;
+      // tile dos destaques
+      const hl = document.getElementById('hl-countdown-' + p.id);
+      if (hl) hl.textContent = '⏱ ' + txt;
     });
   }, 1000);
 }
@@ -1765,10 +1770,10 @@ function renderHighlights() {
     const promo = isPromoAtiva(p);
     const promoRibbon = promo ? `<div class="promo-ribbon">🔥 Promoção</div>` : '';
     const priceHtml = promo
-      ? `<div style="display:flex;flex-direction:column;align-items:center;gap:1px">
+      ? `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;margin-top:4px">
            <span style="font-size:.7rem;color:var(--gray);text-decoration:line-through">R$ ${p.price.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
            <span class="hl-card-price" style="color:#F59E0B">R$ ${price.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
-           <span style="font-size:.65rem;color:#F59E0B">⏱ ${getCountdown(p.promo_fim)}</span>
+           <span id="hl-countdown-${p.id}" style="font-size:.63rem;color:#F59E0B;font-weight:600">⏱ ${getCountdown(p.promo_fim)}</span>
          </div>`
       : `<div class="hl-card-price">R$ ${price.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>`;
     return `<div class="hl-card ${cardClass} ${promo ? 'promo-ativa' : ''}" onclick="scrollToCard('${p.id}')">
