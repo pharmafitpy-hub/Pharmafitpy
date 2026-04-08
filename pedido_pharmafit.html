@@ -1413,6 +1413,7 @@ let selectedPayment = '';
 let cart = {};             // { productId: qty }
 let selectedVariants = {}; // { productId: variantIndex }
 let clienteHistorico = [];
+let _clienteJaLogado = false;
 let activeLabFilter  = 'todos';
 let activeTagFilter  = 'todos';
 let activeSort       = 'alpha';
@@ -2120,11 +2121,17 @@ function goStep(n) {
 async function _goStep2() {
   const btn = document.querySelector('#panel1 .btn-next');
   const alertEl = document.getElementById('alert1');
-  const cpfLimpo = v('f_documento').replace(/\D/g,'');
+  alertEl.classList.remove('show');
 
+  // Já logado via painel → avança direto, sem tentar cadastrar de novo
+  if (_clienteJaLogado) {
+    _aplicarStep(2);
+    return;
+  }
+
+  const cpfLimpo = v('f_documento').replace(/\D/g,'');
   btn.disabled = true;
   btn.textContent = '⏳ Verificando...';
-  alertEl.classList.remove('show');
 
   try {
     const p = new URLSearchParams({
@@ -2667,6 +2674,7 @@ function lpSetLogado(nome, apelido) {
 
 function lpLogout() {
   clienteHistorico = [];
+  _clienteJaLogado = false;
   ['f_clinica','f_responsavel','f_cargo','f_telefone','f_email','f_documento','f_cidade','f_estado','f_endereco'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
@@ -2708,6 +2716,7 @@ async function lpEntrar() {
       lpPreencherCampos(data);
       lpSetLogado(data.nome, data.responsavel || data.apelido);
       if (Array.isArray(data.historico)) clienteHistorico = data.historico;
+      _clienteJaLogado = true;
       lpShowForm();
       document.getElementById('lp-ja-tem-conta').style.display = 'none';
     } else {
