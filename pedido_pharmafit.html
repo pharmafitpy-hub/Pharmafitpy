@@ -1013,9 +1013,8 @@
         <div class="lab-filters" id="lab-filters" style="display:none"></div>
       </div>
       <div class="filter-group">
-        <div class="filter-group-header" onclick="toggleFilterGroup('tag-filters','arrow-tag')">
-          <span class="filter-group-label">Propriedades</span>
-          <span class="filter-arrow open" id="arrow-tag">▼</span>
+        <div class="filter-group-header">
+          <span class="filter-group-label">Categoria</span>
         </div>
         <div class="lab-filters" id="tag-filters"></div>
       </div>
@@ -1763,12 +1762,22 @@ function renderHighlights() {
   divider.style.display  = (destaques.length || recomendados.length) ? '' : 'none';
   function buildTile(p, badgeClass, badgeLabel, cardClass) {
     const price = getEffectivePrice(p);
-    return `<div class="hl-card ${cardClass}" onclick="scrollToCard('${p.id}')">
+    const promo = isPromoAtiva(p);
+    const promoRibbon = promo ? `<div class="promo-ribbon">🔥 Promoção</div>` : '';
+    const priceHtml = promo
+      ? `<div style="display:flex;flex-direction:column;align-items:center;gap:1px">
+           <span style="font-size:.7rem;color:var(--gray);text-decoration:line-through">R$ ${p.price.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+           <span class="hl-card-price" style="color:#F59E0B">R$ ${price.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+           <span style="font-size:.65rem;color:#F59E0B">⏱ ${getCountdown(p.promo_fim)}</span>
+         </div>`
+      : `<div class="hl-card-price">R$ ${price.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>`;
+    return `<div class="hl-card ${cardClass} ${promo ? 'promo-ativa' : ''}" onclick="scrollToCard('${p.id}')">
+      ${promoRibbon}
       <span class="${badgeClass}">${badgeLabel}</span>
       <span class="hl-card-icon">${p.icon}</span>
       <div class="hl-card-name">${p.name}</div>
       <div class="hl-card-conc">${p.conc}</div>
-      <div class="hl-card-price">R$ ${price.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+      ${priceHtml}
       <div class="hl-card-hint">Toque para ver no catálogo →</div>
     </div>`;
   }
