@@ -970,33 +970,27 @@
       <span class="lp-sair" onclick="lpLogout()">Não sou eu</span>
     </div>
 
-    <div id="lp-panel" class="lp-wrap">
-      <!-- Estado A: escolha -->
-      <div id="lp-escolha">
-        <div class="lp-title">👋 Bem-vindo à PharmaFit-PY</div>
-        <div class="lp-sub">Já realizou um pedido antes?<br>Entre com seus dados e não precisa preencher nada.</div>
-        <div class="lp-btns">
-          <button class="lp-btn-primary" onclick="lpShowLogin()">Sim, já sou cliente →</button>
-          <button class="lp-btn-secondary" onclick="lpShowForm()">Sou novo por aqui</button>
-        </div>
-      </div>
-
-      <!-- Estado B: login -->
-      <div id="lp-login" style="display:none">
-        <div class="lp-title">🔑 Entre com seu CPF</div>
-        <div class="lp-sub">Digite seu CPF para carregar seus dados automaticamente</div>
-        <div class="lp-input-wrap">
-          <input class="lp-input" id="lp-doc-input" placeholder="000.000.000-00" oninput="lpFormatDoc(this)" onkeydown="if(event.key==='Enter')lpEntrar()"/>
-          <button class="lp-btn-entrar" onclick="lpEntrar()">Entrar</button>
-        </div>
-        <div class="lp-loading" id="lp-loading">⏳ Buscando dados...</div>
-        <div class="lp-erro" id="lp-erro">⚠️ Dados não encontrados. <span class="lp-link" onclick="lpShowForm()">Preencha manualmente</span></div>
-        <span class="lp-link" onclick="lpShowEscolha()">← Voltar</span>
-      </div>
+    <!-- "Já tem conta?" link no topo -->
+    <div id="lp-ja-tem-conta" style="text-align:center;margin-bottom:14px">
+      <span style="font-size:.82rem;color:var(--gray)">Já tem conta? </span>
+      <span class="lp-link" onclick="lpToggleLogin()" style="color:var(--accent);font-weight:600">Entre aqui e não precisa preencher nada →</span>
     </div>
 
-    <!-- form-grid fica oculto até login/cadastro -->
-    <div id="lp-form-wrap" style="display:none">
+    <!-- Painel de login (oculto, expande ao clicar) -->
+    <div id="lp-panel" class="lp-wrap" style="display:none">
+      <div class="lp-title">🔑 Entre com seu CPF</div>
+      <div class="lp-sub">Digite seu CPF para carregar seus dados automaticamente</div>
+      <div class="lp-input-wrap">
+        <input class="lp-input" id="lp-doc-input" placeholder="000.000.000-00" oninput="lpFormatDoc(this)" onkeydown="if(event.key==='Enter')lpEntrar()"/>
+        <button class="lp-btn-entrar" onclick="lpEntrar()">Entrar</button>
+      </div>
+      <div class="lp-loading" id="lp-loading">⏳ Buscando dados...</div>
+      <div class="lp-erro" id="lp-erro"></div>
+      <span class="lp-link" onclick="lpToggleLogin()" style="margin-top:6px;display:inline-block">← Fechar</span>
+    </div>
+
+    <!-- Formulário — visível por padrão -->
+    <div id="lp-form-wrap">
       <div id="alert1" class="alert">⚠️ Preencha todos os campos obrigatórios antes de continuar.</div>
 
     <div class="form-grid">
@@ -2602,28 +2596,24 @@ function lpInit() {
     lpPreencherCampos(saved);
     lpSetLogado(saved.nome, saved.apelido);
     lpShowForm();
+    document.getElementById('lp-ja-tem-conta').style.display = 'none';
   }
 }
 
-function lpShowEscolha() {
-  document.getElementById('lp-panel').style.display = '';
-  document.getElementById('lp-escolha').style.display = '';
-  document.getElementById('lp-login').style.display = 'none';
-  document.getElementById('lp-form-wrap').style.display = 'none';
-  document.getElementById('lp-logado-bar').style.display = 'none';
-}
-
-function lpShowLogin() {
-  document.getElementById('lp-escolha').style.display = 'none';
-  document.getElementById('lp-login').style.display = '';
-  document.getElementById('lp-erro').style.display = 'none';
-  document.getElementById('lp-loading').style.display = 'none';
-  setTimeout(() => document.getElementById('lp-doc-input').focus(), 100);
+function lpToggleLogin() {
+  const panel = document.getElementById('lp-panel');
+  const open  = panel.style.display !== 'none';
+  panel.style.display = open ? 'none' : '';
+  if (!open) {
+    document.getElementById('lp-erro').style.display = 'none';
+    document.getElementById('lp-loading').style.display = 'none';
+    setTimeout(() => document.getElementById('lp-doc-input').focus(), 100);
+  }
 }
 
 function lpShowForm() {
+  // formulário já está visível por padrão — só garante que o painel fecha
   document.getElementById('lp-panel').style.display = 'none';
-  document.getElementById('lp-form-wrap').style.display = '';
 }
 
 function lpSetLogado(nome, apelido) {
@@ -2638,7 +2628,9 @@ function lpLogout() {
   ['f_clinica','f_responsavel','f_cargo','f_telefone','f_email','f_documento','f_cidade','f_estado','f_endereco'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
-  lpShowEscolha();
+  document.getElementById('lp-logado-bar').style.display = 'none';
+  document.getElementById('lp-ja-tem-conta').style.display = '';
+  document.getElementById('lp-panel').style.display = 'none';
 }
 
 function lpFormatDoc(input) {
@@ -2672,6 +2664,7 @@ async function lpEntrar() {
         cidade: data.cidade || '', estado: data.estado || '', endereco: data.endereco || ''
       }));
       lpShowForm();
+      document.getElementById('lp-ja-tem-conta').style.display = 'none';
     } else {
       document.getElementById('lp-erro').innerHTML = '⚠️ CPF não encontrado. <span class="lp-link" onclick="lpShowForm()">Preencher manualmente</span>';
       document.getElementById('lp-erro').style.display = 'block';
