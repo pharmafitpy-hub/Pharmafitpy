@@ -1711,6 +1711,14 @@ function changeVariantQty(id, varIdx, delta) {
 
 // ─── RENDER PRODUCTS ────────────────────────────────────────────────────────
 function renderProducts() {
+  // Ocultar destaques durante pesquisa
+  const searching = !!activeSearch;
+  ['section-destaque','section-recomendado','catalog-divider'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = searching ? 'none' : (id === 'catalog-divider' ? '' : '');
+  });
+  if (!searching) renderHighlights();
+
   const grid = document.getElementById('products-grid');
   grid.innerHTML = '';
   let list = CATALOG.filter(p => {
