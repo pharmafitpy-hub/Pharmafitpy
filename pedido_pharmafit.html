@@ -1431,6 +1431,7 @@ let PARCELAS_CONFIG = []; // carregado do Sheets (aba "Parcelas")
 let cupomAplicado  = false;
 let cupomDesconto  = 0;
 let cupomCodigo    = '';
+let cupomData      = null;
 
 // ─── INIT ───────────────────────────────────────────────────────────────────
 window.onload = () => {
@@ -1566,20 +1567,62 @@ function aplicarCupom() {
     msg.innerHTML = `<div class="cupom-err">⚠️ Digite um código de bonificação.</div>`;
     return;
   }
-  if (CUPONS_VALIDOS[codigo] !== undefined) {
+  const c = CUPONS_VALIDOS[codigo];
+  if (c !== undefined) {
     cupomAplicado = true;
-    cupomDesconto = CUPONS_VALIDOS[codigo];
     cupomCodigo   = codigo;
-    document.getElementById('f_cupom').disabled = true;
-    document.getElementById('btn-cupom').disabled = true;
-    const pct = (cupomDesconto * 100).toFixed(0);
-    msg.innerHTML = `<div class="cupom-ok">✅ Cupom <strong>${codigo}</strong> aplicado! ${pct}% de desconto sobre o total.</div>`;
-    buildReview(); // atualiza o total na tela
+    // Suporte ao formato antigo (número) e novo (objeto)
+    if (typeof c === 'number') {
+      cupomData     = { tipo: '%', valor: c * 100, produtos: 'todos' };
+      cupomDesconto = c;
+    } else {
+      cupomData     = c;
+      cupomDesconto = c.tipo === '%' ? c.valor / 100 : 0;
+    }
+    document.getElementById('f_cupom').disabled    = true;
+    document.getElementById('btn-cupom').disabled  = true;
+    let msgTxt = '';
+    if (cupomData.tipo === '%') {
+      const alvo = cupomData.produtos === 'todos' ? 'todos os produtos' : `${Array.isArray(cupomData.produtos) ? cupomData.produtos.length : 1} produto(s)`;
+      msgTxt = `✅ Cupom <strong>${codigo}</strong> aplicado! ${cupomData.valor}% de desconto em ${alvo}.`;
+    } else {
+      const n = Array.isArray(cupomData.produtos) ? cupomData.produtos.length : Object.keys(cupomData.precos||{}).length;
+      msgTxt = `✅ Cupom <strong>${codigo}</strong> aplicado! Preço especial em ${n} produto(s).`;
+    }
+    msg.innerHTML = `<div class="cupom-ok">${msgTxt}</div>`;
+    buildReview();
   } else {
     cupomAplicado = false;
     cupomDesconto = 0;
+    cupomData     = null;
     msg.innerHTML = `<div class="cupom-err">❌ Código inválido. Verifique e tente novamente.</div>`;
   }
+}
+
+function calcularDescontoCupom() {
+  if (!cupomAplicado || !cupomData) return 0;
+  if (cupomData.tipo === '%') {
+    if (cupomData.produtos === 'todos') {
+      return getTotal() * (cupomData.valor / 100);
+    }
+    let base = 0;
+    const prods = Array.isArray(cupomData.produtos) ? cupomData.produtos : [];
+    Object.entries(cart).forEach(([id, qty]) => {
+      if (prods.includes(id)) base += getProductPrice(id) * qty;
+    });
+    return base * (cupomData.valor / 100);
+  }
+  if (cupomData.tipo === 'fixo') {
+    let desc = 0;
+    const precos = cupomData.precos || {};
+    Object.entries(cart).forEach(([id, qty]) => {
+      if (precos[id] !== undefined) {
+        desc += Math.max(0, getProductPrice(id) - precos[id]) * qty;
+      }
+    });
+    return desc;
+  }
+  return 0;
 }
 
 function parseBrDate(str) {
@@ -2304,10 +2347,13 @@ function buildReview() {
   // Total box
   const subtotalBruto = getTotal();
   const totalFinal    = getFinalTotal();
-  const descontoValor = cupomAplicado ? (subtotalBruto + freteValor) * cupomDesconto : 0;
-  const descontoHtml  = cupomAplicado ? `
+  const descontoValor = cupomAplicado ? calcularDescontoCupom() : 0;
+  const descontoLabel = cupomData?.tipo === 'fixo'
+    ? `Preço especial — ${cupomCodigo}`
+    : `${(cupomData?.valor||0).toFixed(0)}% — ${cupomCodigo}`;
+  const descontoHtml  = cupomAplicado && descontoValor > 0 ? `
     <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:.85rem;color:var(--accent);font-weight:700">
-      <span>🎟️ Desconto (${(cupomDesconto*100).toFixed(0)}% — ${cupomCodigo})</span>
+      <span>🎟️ Desconto (${descontoLabel})</span>
       <span>− R$ ${descontoValor.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
     </div>` : '';
   document.getElementById('review-total-box').innerHTML = `
@@ -2436,7 +2482,8 @@ function getFinalTotal() {
     const juros  = config ? config.juros : 0;
     if (juros > 0) total *= (1 + juros / 100);
   }
-  if (cupomAplicado && cupomDesconto > 0) total *= (1 - cupomDesconto);
+  total -= calcularDescontoCupom();
+  if (total < 0) total = 0;
   return total;
 }
 
