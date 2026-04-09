@@ -937,12 +937,12 @@
   <div class="stepper">
     <div class="step active" id="s1">
       <div class="step-circle">1</div>
-      <div class="step-label">Dados<br>Cadastrais</div>
+      <div class="step-label">Produtos</div>
     </div>
     <div class="step-line" id="line1"></div>
     <div class="step" id="s2">
       <div class="step-circle">2</div>
-      <div class="step-label">Produtos</div>
+      <div class="step-label">Seus Dados</div>
     </div>
     <div class="step-line" id="line2"></div>
     <div class="step" id="s3">
@@ -959,8 +959,86 @@
 
 <main>
 
-  <!-- STEP 1 — DADOS CADASTRAIS -->
+  <!-- STEP 1 — PRODUTOS -->
   <div class="step-panel active" id="panel1">
+    <div class="panel-title">💊 Selecione os Produtos</div>
+    <div class="panel-subtitle">Clique no produto para selecionar e defina a quantidade</div>
+
+    <div id="alert1" class="alert">⚠️ Selecione pelo menos um produto para continuar.</div>
+
+    <!-- ⭐ Em Destaque -->
+    <div class="hl-section" id="section-destaque" style="display:none">
+      <div class="hl-header">
+        <span>⭐</span>
+        <span class="hl-title">Em Destaque</span>
+        <span class="hl-sub">Os mais vendidos</span>
+      </div>
+      <div class="hl-grid" id="grid-destaque"></div>
+    </div>
+
+    <!-- 💡 Você também pode gostar -->
+    <div class="hl-section" id="section-recomendado" style="display:none">
+      <div class="hl-header">
+        <span>💡</span>
+        <span class="hl-title">Você também pode gostar</span>
+        <span class="hl-sub">Selecionados para você</span>
+      </div>
+      <div class="hl-grid" id="grid-recomendado"></div>
+    </div>
+
+    <div class="catalog-divider" id="catalog-divider" style="display:none">📦 Catálogo Completo</div>
+
+    <div class="filter-area">
+      <input type="search" id="product-search" placeholder="🔍 Buscar produto pelo nome..."
+        oninput="activeSearch=this.value.toLowerCase().trim();renderProducts()"
+        style="width:100%;padding:9px 14px;border-radius:8px;border:1px solid var(--border);
+               background:#0d1526;color:var(--text);font-size:.88rem;outline:none;font-family:inherit"/>
+      <div class="filter-group">
+        <div class="filter-group-header" onclick="toggleFilterGroup('lab-filters','arrow-lab')">
+          <span class="filter-group-label">Laboratórios</span>
+          <span class="filter-arrow" id="arrow-lab">▼</span>
+        </div>
+        <div class="lab-filters" id="lab-filters" style="display:none"></div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-group-header">
+          <span class="filter-group-label">Categoria</span>
+        </div>
+        <div class="lab-filters" id="tag-filters"></div>
+      </div>
+      <div class="sort-bar">
+        <span class="sort-label">Ordenar:</span>
+        <button class="sort-btn active" data-sort="alpha" onclick="setSort('alpha')">A–Z</button>
+        <button class="sort-btn" data-sort="price-asc" onclick="setSort('price-asc')">↑ Menor preço</button>
+        <button class="sort-btn" data-sort="price-desc" onclick="setSort('price-desc')">↓ Maior preço</button>
+      </div>
+    </div>
+
+    <div class="products-grid" id="products-grid">
+      <!-- cards gerados via JS -->
+    </div>
+
+    <div class="total-bar">
+      <div>
+        <div class="tb-label">Itens selecionados</div>
+        <div class="tb-items" id="items-count">0 produto(s)</div>
+      </div>
+      <div style="text-align:right">
+        <div class="tb-label">Total do Pedido</div>
+        <div style="display:flex; align-items:baseline; gap:4px; justify-content:flex-end">
+          <span class="tb-currency">R$</span>
+          <span class="tb-total" id="total-display">0,00</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-next" onclick="goStep(2)">Continuar com Meus Dados →</button>
+    </div>
+  </div>
+
+  <!-- STEP 2 — DADOS CADASTRAIS -->
+  <div class="step-panel" id="panel2">
     <div class="panel-title">👤 Seus Dados</div>
     <div class="panel-subtitle">Preencha seus dados para realizarmos o pedido</div>
 
@@ -991,7 +1069,7 @@
 
     <!-- Formulário — visível por padrão -->
     <div id="lp-form-wrap">
-      <div id="alert1" class="alert">⚠️ Preencha todos os campos obrigatórios antes de continuar.</div>
+      <div id="alert2" class="alert">⚠️ Preencha todos os campos obrigatórios antes de continuar.</div>
 
     <div class="form-grid">
       <div class="field full">
@@ -1038,82 +1116,8 @@
     </div><!-- /lp-form-wrap -->
 
     <div class="btn-row">
-      <button class="btn btn-next" onclick="goStep(2)">Continuar para os Produtos →</button>
-    </div>
-  </div>
-
-  <!-- STEP 2 — PRODUTOS -->
-  <div class="step-panel" id="panel2">
-    <div class="panel-title">💊 Selecione os Produtos</div>
-    <div class="panel-subtitle">Clique no produto para selecionar e defina a quantidade</div>
-
-    <div id="alert2" class="alert">⚠️ Selecione pelo menos 1 produto para continuar.</div>
-
-    <!-- ⭐ Em Destaque -->
-    <div class="hl-section" id="section-destaque" style="display:none">
-      <div class="hl-header">
-        <span>⭐</span>
-        <span class="hl-title">Em Destaque</span>
-        <span class="hl-sub">Os mais vendidos</span>
-      </div>
-      <div class="hl-grid" id="grid-destaque"></div>
-    </div>
-
-    <!-- 💡 Você também pode gostar -->
-    <div class="hl-section" id="section-recomendado" style="display:none">
-      <div class="hl-header">
-        <span>💡</span>
-        <span class="hl-title">Você também pode gostar</span>
-        <span class="hl-sub">Selecionados para você</span>
-      </div>
-      <div class="hl-grid" id="grid-recomendado"></div>
-    </div>
-
-    <div class="catalog-divider" id="catalog-divider" style="display:none">📦 Catálogo Completo</div>
-
-    <div class="filter-area">
-      <div class="filter-group">
-        <div class="filter-group-header" onclick="toggleFilterGroup('lab-filters','arrow-lab')">
-          <span class="filter-group-label">Laboratórios</span>
-          <span class="filter-arrow" id="arrow-lab">▼</span>
-        </div>
-        <div class="lab-filters" id="lab-filters" style="display:none"></div>
-      </div>
-      <div class="filter-group">
-        <div class="filter-group-header">
-          <span class="filter-group-label">Categoria</span>
-        </div>
-        <div class="lab-filters" id="tag-filters"></div>
-      </div>
-      <div class="sort-bar">
-        <span class="sort-label">Ordenar:</span>
-        <button class="sort-btn active" data-sort="alpha" onclick="setSort('alpha')">A–Z</button>
-        <button class="sort-btn" data-sort="price-asc" onclick="setSort('price-asc')">↑ Menor preço</button>
-        <button class="sort-btn" data-sort="price-desc" onclick="setSort('price-desc')">↓ Maior preço</button>
-      </div>
-    </div>
-
-    <div class="products-grid" id="products-grid">
-      <!-- cards gerados via JS -->
-    </div>
-
-    <div class="total-bar">
-      <div>
-        <div class="tb-label">Itens selecionados</div>
-        <div class="tb-items" id="items-count">0 produto(s)</div>
-      </div>
-      <div style="text-align:right">
-        <div class="tb-label">Total do Pedido</div>
-        <div style="display:flex; align-items:baseline; gap:4px; justify-content:flex-end">
-          <span class="tb-currency">R$</span>
-          <span class="tb-total" id="total-display">0,00</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="btn-row">
       <button class="btn btn-back" onclick="goStep(1)">← Voltar</button>
-      <button class="btn btn-next" onclick="goStep(3)">Próximo — Pagamento →</button>
+      <button class="btn btn-next" onclick="_goStep3()">Continuar para Pagamento →</button>
     </div>
   </div>
 
@@ -1417,6 +1421,7 @@ let _clienteJaLogado = false;
 let activeLabFilter  = 'todos';
 let activeTagFilter  = 'todos';
 let activeSort       = 'alpha';
+let activeSearch     = '';
 let countdownInterval = null;
 
 // ─── CUPOM DE BONIFICAÇÃO ────────────────────────────────────────────────────
@@ -1707,10 +1712,15 @@ function changeVariantQty(id, varIdx, delta) {
 function renderProducts() {
   const grid = document.getElementById('products-grid');
   grid.innerHTML = '';
-  let list = CATALOG.filter(p =>
-    (activeLabFilter === 'todos' || p.lab === activeLabFilter) &&
-    (activeTagFilter === 'todos' || p.categoria === activeTagFilter)
-  );
+  let list = CATALOG.filter(p => {
+    if (activeLabFilter !== 'todos' && p.lab !== activeLabFilter) return false;
+    if (activeTagFilter !== 'todos' && p.categoria !== activeTagFilter) return false;
+    if (activeSearch) {
+      const hay = [p.nome, p.conc, p.lab, ...(p.tags||[])].join(' ').toLowerCase();
+      if (!hay.includes(activeSearch)) return false;
+    }
+    return true;
+  });
   if (activeSort === 'alpha') {
     list.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   } else if (activeSort === 'price-asc') {
@@ -2112,20 +2122,20 @@ function goStep(n) {
   if (n > 2 && !validateStep2()) return;
   if (n > 3 && !validateStep3()) return;
 
-  // Ao avançar do passo 1 → 2: verifica duplicata e cadastra
-  if (n === 2) { _goStep2(); return; }
+  // Ao avançar do passo 2 → 3: verifica duplicata e cadastra
+  if (n === 3) { _goStep3(); return; }
 
   _aplicarStep(n);
 }
 
-async function _goStep2() {
-  const btn = document.querySelector('#panel1 .btn-next');
-  const alertEl = document.getElementById('alert1');
+async function _goStep3() {
+  const btn = document.querySelector('#panel2 .btn-next');
+  const alertEl = document.getElementById('alert2');
   alertEl.classList.remove('show');
 
   // Já logado via painel → avança direto, sem tentar cadastrar de novo
   if (_clienteJaLogado) {
-    _aplicarStep(2);
+    _aplicarStep(3);
     return;
   }
 
@@ -2157,7 +2167,7 @@ async function _goStep2() {
       alertEl.textContent = msgs[data.duplicado] || '⚠️ ' + (data.erro || 'Erro ao cadastrar.');
       alertEl.classList.add('show');
       btn.disabled = false;
-      btn.textContent = 'Continuar para os Produtos →';
+      btn.textContent = 'Continuar para Pagamento →';
       return;
     }
   } catch(e) {
@@ -2165,10 +2175,10 @@ async function _goStep2() {
   }
 
   btn.disabled = false;
-  btn.textContent = 'Continuar para os Produtos →';
+  btn.textContent = 'Continuar para Pagamento →';
   lpSetLogado(v('f_clinica'), v('f_responsavel'));
   document.getElementById('lp-ja-tem-conta').style.display = 'none';
-  _aplicarStep(2);
+  _aplicarStep(3);
 }
 
 function _aplicarStep(n) {
@@ -2197,6 +2207,13 @@ function _aplicarStep(n) {
 
 // ─── VALIDAÇÕES ─────────────────────────────────────────────────────────────
 function validateStep1() {
+  const ok = Object.keys(cart).length > 0;
+  const alert = document.getElementById('alert1');
+  ok ? alert.classList.remove('show') : alert.classList.add('show');
+  return ok;
+}
+
+function validateStep2() {
   const required = ['f_clinica','f_responsavel','f_telefone','f_email'];
   let ok = true;
   required.forEach(id => {
@@ -2204,13 +2221,6 @@ function validateStep1() {
     if (!el.value.trim()) { el.classList.add('error'); ok = false; }
     else el.classList.remove('error');
   });
-  const alert = document.getElementById('alert1');
-  ok ? alert.classList.remove('show') : alert.classList.add('show');
-  return ok;
-}
-
-function validateStep2() {
-  const ok = Object.keys(cart).length > 0;
   const alert = document.getElementById('alert2');
   ok ? alert.classList.remove('show') : alert.classList.add('show');
   return ok;
@@ -2719,7 +2729,7 @@ async function lpEntrar() {
       _clienteJaLogado = true;
       lpShowForm();
       document.getElementById('lp-ja-tem-conta').style.display = 'none';
-      _aplicarStep(2);
+      _aplicarStep(3);
     } else {
       document.getElementById('lp-erro').innerHTML = '⚠️ Não encontrado. <span class="lp-link" onclick="lpShowForm()">Preencher manualmente</span>';
       document.getElementById('lp-erro').style.display = 'block';
