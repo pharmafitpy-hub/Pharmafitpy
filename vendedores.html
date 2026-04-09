@@ -342,11 +342,13 @@ const PIN = '5689';
 let PRODUTOS = [];
 let selecionados = new Set(); // Set de IDs
 let tipoAtual = 'pct';
+let pinDigitado = ''; // guarda o PIN que o usuário digitou
 
 // ── PIN ───────────────────────────────────────────────────────────────────────
 function checkPin() {
   const val = document.getElementById('pin-input').value;
   if (val === PIN) {
+    pinDigitado = val; // salva para enviar ao servidor
     document.getElementById('pin-overlay').style.display = 'none';
     carregarProdutos();
   } else {
@@ -356,6 +358,7 @@ function checkPin() {
   }
 }
 function logout() {
+  pinDigitado = '';
   document.getElementById('pin-overlay').style.display = 'flex';
   document.getElementById('pin-input').value = '';
   document.getElementById('pin-err').textContent = '';
@@ -533,7 +536,7 @@ async function criarCupom() {
   try {
     const params = new URLSearchParams({
       action:    'criarcupom',
-      pin:       PIN,
+      pin:       pinDigitado,
       codigo,
       vendedora,
       tipo:      tipoAtual === 'pct' ? '%' : 'fixo',
