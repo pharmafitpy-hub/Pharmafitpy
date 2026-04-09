@@ -368,7 +368,27 @@ function logout() {
 async function carregarProdutos() {
   try {
     const res = await fetch(`${SHEETS_URL}?action=produtos`);
-    PRODUTOS = await res.json();
+    const raw = await res.json();
+    // Expande produtos com variantes em entradas separadas (ID: prodId__varIdx)
+    // para bater com as chaves do carrinho no formulário de pedido
+    PRODUTOS = [];
+    for (const p of raw) {
+      if (p.variantes && p.variantes.length > 0) {
+        p.variantes.forEach((v, i) => {
+          PRODUTOS.push({
+            id:    `${p.id}__${i}`,
+            icone: p.icone || '💊',
+            nome:  p.nome,
+            conc:  v.dose || p.conc,
+            preco: v.preco || 0,
+            lab:   p.lab,
+            tags:  p.tags || [],
+          });
+        });
+      } else {
+        PRODUTOS.push(p);
+      }
+    }
     filtrarProdutos();
   } catch(e) {
     document.getElementById('prod-grid').innerHTML = '<div style="color:var(--red);font-size:.85rem">Erro ao carregar produtos.</div>';
