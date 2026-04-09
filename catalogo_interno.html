@@ -297,18 +297,27 @@ function filtrar() {
 }
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
+function parseBrDate(s) {
+  if (!s) return null;
+  if (/^\d{2}\/\d{2}\/\d{4}/.test(s)) {
+    const [datePart, timePart] = s.split(' ');
+    const [d, m, y] = datePart.split('/');
+    const [h, min] = timePart ? timePart.split(':') : ['0','0'];
+    if (!d || !m || !y || isNaN(+d) || isNaN(+m) || isNaN(+y)) return null;
+    return new Date(+y, +m - 1, +d, +(h||0), +(min||0));
+  }
+  const dt = new Date(s);
+  return isNaN(dt.getTime()) ? null : dt;
+}
+
 function isPromoAtiva(p) {
-  if (!p.promo_preco || parseFloat(p.promo_preco) <= 0) return false;
-  const agora = new Date();
-  if (p.promo_inicio) {
-    const ini = new Date(p.promo_inicio.split(' ')[0].split('/').reverse().join('-'));
-    if (agora < ini) return false;
-  }
-  if (p.promo_fim) {
-    const fim = new Date(p.promo_fim.split(' ')[0].split('/').reverse().join('-') + 'T23:59:59');
-    if (agora > fim) return false;
-  }
-  return true;
+  if (!p.promo_preco && !p.promo_pct) return false;
+  if (!p.promo_fim) return false;
+  const now = new Date();
+  const fim    = parseBrDate(p.promo_fim);
+  const inicio = p.promo_inicio ? parseBrDate(p.promo_inicio) : new Date(0);
+  if (!fim) return false;
+  return now >= (inicio || new Date(0)) && now <= fim;
 }
 
 function fmt(v) {
