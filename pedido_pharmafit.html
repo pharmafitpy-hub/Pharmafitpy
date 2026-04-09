@@ -1716,7 +1716,7 @@ function renderProducts() {
     if (activeLabFilter !== 'todos' && p.lab !== activeLabFilter) return false;
     if (activeTagFilter !== 'todos' && p.categoria !== activeTagFilter) return false;
     if (activeSearch) {
-      const hay = [p.nome, p.conc, p.lab, ...(p.tags||[])].join(' ').toLowerCase();
+      const hay = [p.name, p.conc, p.lab, ...(p.tags||[])].join(' ').toLowerCase();
       if (!hay.includes(activeSearch)) return false;
     }
     return true;
