@@ -1583,11 +1583,19 @@ function aplicarCupom() {
     document.getElementById('btn-cupom').disabled  = true;
     let msgTxt = '';
     if (cupomData.tipo === '%') {
-      const alvo = cupomData.produtos === 'todos' ? 'todos os produtos' : `${Array.isArray(cupomData.produtos) ? cupomData.produtos.length : 1} produto(s)`;
-      msgTxt = `✅ Cupom <strong>${codigo}</strong> aplicado! ${cupomData.valor}% de desconto em ${alvo}.`;
+      if (cupomData.produtos === 'todos') {
+        msgTxt = `✅ Cupom <strong>${codigo}</strong> aplicado! ${cupomData.valor}% de desconto em todos os produtos.`;
+      } else {
+        const prods = Array.isArray(cupomData.produtos) ? cupomData.produtos : [];
+        // conta apenas os produtos do carrinho que estão cobertos pelo cupom
+        const n = Object.keys(cart).filter(id => prods.includes(id)).length;
+        msgTxt = `✅ Cupom <strong>${codigo}</strong> aplicado! ${cupomData.valor}% de desconto em ${n || prods.length} produto(s).`;
+      }
     } else {
-      const n = Array.isArray(cupomData.produtos) ? cupomData.produtos.length : Object.keys(cupomData.precos||{}).length;
-      msgTxt = `✅ Cupom <strong>${codigo}</strong> aplicado! Preço especial em ${n} produto(s).`;
+      const precos = cupomData.precos || {};
+      // conta produtos do carrinho que têm preço fixo definido no cupom
+      const n = Object.keys(cart).filter(id => precos[id] !== undefined).length;
+      msgTxt = `✅ Cupom <strong>${codigo}</strong> aplicado! Preço especial em ${n || Object.keys(precos).length} produto(s).`;
     }
     msg.innerHTML = `<div class="cupom-ok">${msgTxt}</div>`;
     buildReview();
@@ -2418,8 +2426,11 @@ function sendWhatsApp() {
   msg += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
   msg += `📦 Frete: ${freteValor === 0 ? 'GRÁTIS' : 'R$ ' + freteValor.toFixed(2).replace('.',',')}\n`;
   if (cupomAplicado) {
-    const desc = (getTotal() + freteValor) * cupomDesconto;
-    msg += `🎟️ Desconto (${(cupomDesconto*100).toFixed(0)}% — ${cupomCodigo}): − R$ ${desc.toLocaleString('pt-BR',{minimumFractionDigits:2})}\n`;
+    const desc   = calcularDescontoCupom();
+    const dLabel = cupomData?.tipo === 'fixo'
+      ? `Preço especial — ${cupomCodigo}`
+      : `${cupomData?.valor || 0}% — ${cupomCodigo}`;
+    msg += `🎟️ Desconto (${dLabel}): − R$ ${desc.toLocaleString('pt-BR',{minimumFractionDigits:2})}\n`;
   }
   msg += `💰 *TOTAL: R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2})}*\n`;
   msg += `━━━━━━━━━━━━━━━━━━━━━━\n`;
@@ -2460,8 +2471,8 @@ function sendWhatsApp() {
     obs:           v('f_obs'),
     obs_pagamento: v('f_obs_pag'),
     cupom_codigo:  cupomCodigo || '',
-    cupom_pct:     cupomAplicado ? (cupomDesconto * 100).toFixed(0) : '0',
-    cupom_valor:   cupomAplicado ? ((getTotal() + freteValor) * cupomDesconto).toFixed(2) : '0',
+    cupom_pct:     cupomAplicado && cupomData?.tipo === '%' ? (cupomData.valor).toFixed(0) : '0',
+    cupom_valor:   cupomAplicado ? calcularDescontoCupom().toFixed(2) : '0',
     carrinho:      JSON.stringify(cart)
   });
   fetch(`${SHEETS_URL}?${params.toString()}`, { method: 'GET', mode: 'no-cors' }).catch(() => {});
