@@ -1584,7 +1584,7 @@ function aplicarCupom() {
     // calcula desconto já com os itens do carrinho
     const descValor = calcularDescontoCupom();
     const descStr   = descValor > 0
-      ? ` — <strong>− R$ ${descValor.toLocaleString('pt-BR',{minimumFractionDigits:2})}</strong>`
+      ? ` — <strong>R$ ${descValor.toLocaleString('pt-BR',{minimumFractionDigits:2})} de desconto</strong>`
       : '';
     let msgTxt = '';
     if (cupomData.tipo === '%') {
@@ -2320,13 +2320,31 @@ function buildReview() {
     const { id } = parseCartKey(key);
     const p = CATALOG.find(x => x.id === id);
     if (!p) return;
-    const qty = cart[key];
+    const qty   = cart[key];
     const price = getPriceByKey(key);
     const varLabel = getVariantLabel(key);
-    const sub = price * qty;
+    const sub   = price * qty;
     total += sub;
+
+    // Verifica se este item tem desconto de cupom
+    let cupomHtml = '';
+    if (cupomAplicado && cupomData) {
+      if (cupomData.tipo === 'fixo') {
+        const precos = cupomData.precos || {};
+        if (precos[key] !== undefined) {
+          const novoP = parseFloat(precos[key]);
+          cupomHtml = `<div style="font-size:.72rem;color:var(--accent);margin-top:1px">🎟️ Cupom: R$ ${novoP.toLocaleString('pt-BR',{minimumFractionDigits:2})} / un.</div>`;
+        }
+      } else if (cupomData.tipo === '%') {
+        const prods = Array.isArray(cupomData.produtos) ? cupomData.produtos : null;
+        if (!prods || prods.includes(key)) {
+          cupomHtml = `<div style="font-size:.72rem;color:var(--accent);margin-top:1px">🎟️ Cupom: −${cupomData.valor}%</div>`;
+        }
+      }
+    }
+
     html += `<div class="rp-item">
-      <div><div class="rp-name">${p.icon} ${p.name}</div><div class="rp-detail">${varLabel}</div></div>
+      <div><div class="rp-name">${p.icon} ${p.name}</div><div class="rp-detail">${varLabel}</div>${cupomHtml}</div>
       <div><div style="text-align:right; font-size:.8rem; color:var(--gray)">${qty} × R$${price.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
       <div class="rp-total">R$ ${sub.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div></div>
     </div>`;
