@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
 <title>Pedido PharmaFit-PY</title>
 <style>
   :root {
@@ -2236,15 +2239,20 @@ function calcInstallment() {
 
 // ─── NAVIGATION ─────────────────────────────────────────────────────────────
 function goStep(n) {
-  // Validações
-  if (n > 1 && !validateStep1()) return;
-  if (n > 2 && !validateStep2()) return;
-  if (n > 3 && !validateStep3()) return;
+  // Validações — se falhar em passo anterior, volta para ele e mostra o erro
+  if (n > 1 && !validateStep1()) { _aplicarStep(1); return; }
+  if (n > 2 && !validateStep2()) { _aplicarStep(2); return; }
+  if (n > 3 && !validateStep3()) { return; }
 
   // Ao avançar do passo 2 → 3: verifica duplicata e cadastra
   if (n === 3) { _goStep3(); return; }
 
-  _aplicarStep(n);
+  try {
+    _aplicarStep(n);
+  } catch(e) {
+    console.error('Erro ao avançar passo:', e);
+    alert('Ocorreu um erro ao carregar a revisão. Tente novamente.');
+  }
 }
 
 async function _goStep3() {
@@ -2274,7 +2282,10 @@ async function _goStep3() {
       estado:      v('f_estado'),
       endereco:    getEnderecoCompleto()
     });
-    const res  = await fetch(`${SHEETS_URL}?${p.toString()}`);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const res  = await fetch(`${SHEETS_URL}?${p.toString()}`, { signal: controller.signal });
+    clearTimeout(timeout);
     const data = await res.json();
 
     if (!data.ok) {
@@ -2290,7 +2301,7 @@ async function _goStep3() {
       return;
     }
   } catch(e) {
-    // erro de rede: avança mesmo assim (não bloqueia pedido por falha de rede)
+    // erro de rede ou timeout: avança mesmo assim (não bloqueia pedido por falha de rede)
   }
 
   btn.disabled = false;
@@ -2333,13 +2344,20 @@ function validateStep1() {
 }
 
 function validateStep2() {
-  const required = ['f_clinica','f_responsavel','f_telefone','f_email','f_rua','f_numero','f_bairro'];
+  const base    = ['f_clinica','f_responsavel','f_telefone','f_email'];
+  const enderecoFields = ['f_rua','f_numero','f_bairro'];
+  // Clientes já cadastrados não são obrigados a preencher os novos campos de endereço
+  const required = _clienteJaLogado ? base : [...base, ...enderecoFields];
   let ok = true;
   required.forEach(id => {
     const el = document.getElementById(id);
     if (!el || !el.value.trim()) { if (el) el.classList.add('error'); ok = false; }
     else el.classList.remove('error');
   });
+  // Limpar erros dos campos não-obrigatórios neste contexto
+  if (_clienteJaLogado) {
+    enderecoFields.forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('error'); });
+  }
   const alert = document.getElementById('alert2');
   ok ? alert.classList.remove('show') : alert.classList.add('show');
   return ok;
