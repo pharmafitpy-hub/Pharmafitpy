@@ -14,9 +14,9 @@ const fs = require('fs');
 
   const base64 = await page.evaluate(() => document.getElementById('c').toDataURL('image/jpeg', 0.95));
   const buf = Buffer.from(base64.replace(/^data:image\/jpeg;base64,/, ''), 'base64');
-  const out = path.join(__dirname, 'og-image.jpg');
+  const out = path.join(__dirname, 'og-image-v2.jpg');
   fs.writeFileSync(out, buf);
-  console.log(`✅ og-image.jpg salvo — ${buf.length} bytes`);
+  console.log(`✅ og-image-v2.jpg salvo — ${buf.length} bytes`);
 
   await browser.close();
 })();
