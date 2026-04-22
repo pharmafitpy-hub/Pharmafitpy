@@ -1678,6 +1678,7 @@ function removerCupom() {
   document.getElementById('cupom-beneficios').innerHTML = '';
   if (hadParc) {
     const sel = document.getElementById('f_parcelas');
+    const valorAntes = sel.value; // guarda antes de reconstruir
     delete sel.dataset.cupomParc;
     if (PARCELAS_CONFIG.length > 0) {
       sel.innerHTML = PARCELAS_CONFIG.map(p =>
@@ -1686,6 +1687,7 @@ function removerCupom() {
     } else {
       sel.innerHTML = '<option value="1">1x sem juros</option><option value="2">2x sem juros</option><option value="3">3x sem juros</option>';
     }
+    if (sel.querySelector(`option[value="${valorAntes}"]`)) sel.value = valorAntes;
     if (selectedPayment === 'Cartão de Crédito') calcInstallment();
   }
   if (hadFrete && freteMetodo === 'gratis-cupom') {
@@ -2562,10 +2564,22 @@ function buildReview() {
   const beneficiosReviewHtml = (() => {
     if (!cupomAplicado || !cupomData) return '';
     const items = [];
-    if (cupomData.parcelamento && selectedPayment === 'Cartão de Crédito')
-      items.push(`⚡ Parcelamento sem juros (até 3×) · cupom <strong>${cupomCodigo}</strong>`);
-    if (freteMetodo === 'gratis-cupom')
-      items.push(`🚚 Frete grátis · cupom <strong>${cupomCodigo}</strong>`);
+    if (cupomData.parcelamento && selectedPayment === 'Cartão de Crédito') {
+      const parc = parseInt(document.getElementById('f_parcelas').value) || 1;
+      const origConf = PARCELAS_CONFIG.find(p => p.parcelas === parc);
+      const jurosOrig = origConf ? origConf.juros : 0;
+      const econJuros = jurosOrig > 0
+        ? ` <span style="opacity:.85">· economia de R$ ${(getTotal() * jurosOrig / 100).toLocaleString('pt-BR',{minimumFractionDigits:2})} em juros</span>`
+        : '';
+      items.push(`⚡ Parcelamento sem juros (${parc}×)${econJuros} · cupom <strong>${cupomCodigo}</strong>`);
+    }
+    if (freteMetodo === 'gratis-cupom') {
+      const econFrete = _savedFrete?.valor > 0
+        ? ` <span style="opacity:.85">· economia de R$ ${_savedFrete.valor.toFixed(2).replace('.',',')}</span>`
+        : '';
+      items.push(`🚚 Frete grátis${econFrete} · cupom <strong>${cupomCodigo}</strong>`);
+    }
+    if (!items.length) return '';
     return items.map(i =>
       `<div style="font-size:.75rem;color:var(--green);margin-bottom:5px">${i}</div>`
     ).join('');
