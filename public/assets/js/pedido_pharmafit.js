@@ -736,7 +736,28 @@ function updateTotal() {
   });
   document.getElementById('total-display').textContent = total.toLocaleString('pt-BR', {minimumFractionDigits:2});
   document.getElementById('items-count').textContent = `${count} produto(s) · ${Object.keys(cart).length} tipo(s)`;
-  if (cupomAplicado && cupomData?.frete_gratis_acima > 0 && freteEstado) selecionarFrete(freteMetodo || 'jadlog');
+  if (cupomAplicado && cupomData?.frete_gratis_acima > 0 && freteEstado) {
+    const limiar = cupomData.frete_gratis_acima;
+    const elGratis = document.getElementById('frete-gratis');
+    const elMetodos = document.getElementById('frete-metodos');
+    if (getTotal() >= limiar) {
+      if (freteMetodo !== 'gratis-cupom') {
+        _savedFrete = { valor: freteValor, metodo: freteMetodo };
+        freteValor = 0; freteMetodo = 'gratis-cupom';
+        if (elGratis) { elGratis.textContent = `🎁 Frete grátis pelo cupom!`; elGratis.classList.add('show'); }
+        if (elMetodos) elMetodos.style.display = 'none';
+      }
+    } else if (freteMetodo === 'gratis-cupom') {
+      freteValor  = _savedFrete ? _savedFrete.valor : 0;
+      freteMetodo = _savedFrete ? _savedFrete.metodo : '';
+      _savedFrete = null;
+      if (elGratis) elGratis.classList.remove('show');
+      if (elMetodos) elMetodos.style.display = '';
+      document.querySelectorAll('.frete-opt').forEach(e => e.classList.remove('selected'));
+      const fo = document.getElementById('fo-' + freteMetodo);
+      if (fo) fo.classList.add('selected');
+    }
+  }
   if (selectedPayment === 'Cartão de Crédito') calcInstallment();
 }
 
@@ -1093,6 +1114,7 @@ function validateStep3() {
 
 // ─── BUILD REVIEW ───────────────────────────────────────────────────────────
 function buildReview() {
+  if (selectedPayment === 'Cartão de Crédito') calcInstallment();
   // Dados
   const dados = [
     ['Clínica', v('f_clinica')],
