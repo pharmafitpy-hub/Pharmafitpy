@@ -1412,6 +1412,7 @@ let freteValor = 0;
 let freteMetodo = '';
 let freteCep = '';
 let freteEstado = '';
+let _savedFrete = null; // salva estado do frete antes do cupom grátis
 
 // ─── CORRELAÇÕES ────────────────────────────────────────────────────────────
 const CORRELACOES = {
@@ -1628,13 +1629,16 @@ function aplicarCupom() {
     const beneficios = [];
     if (cupomData.parcelamento) {
       const sel = document.getElementById('f_parcelas');
+      const selAtual = sel.value; // preserva seleção atual
       sel.innerHTML = '<option value="1">1x sem juros</option><option value="2">2x sem juros</option><option value="3">3x sem juros</option>';
       sel.dataset.cupomParc = '1';
+      if (['1','2','3'].includes(selAtual)) sel.value = selAtual; // restaura se válido
       if (selectedPayment === 'Cartão de Crédito') calcInstallment();
       beneficios.push(`⚡ Parcelamento sem juros em até 3× ativado pelo cupom`);
     }
     // Frete grátis via cupom
     if (cupomData.frete_gratis_acima > 0 && getTotal() >= cupomData.frete_gratis_acima) {
+      _savedFrete = { valor: freteValor, metodo: freteMetodo }; // salva estado anterior
       freteValor  = 0;
       freteMetodo = 'gratis-cupom';
       const el = document.getElementById('frete-gratis');
@@ -1685,7 +1689,17 @@ function removerCupom() {
     if (selectedPayment === 'Cartão de Crédito') calcInstallment();
   }
   if (hadFrete && freteMetodo === 'gratis-cupom') {
-    freteValor = 0; freteMetodo = '';
+    if (_savedFrete) {
+      freteValor  = _savedFrete.valor;
+      freteMetodo = _savedFrete.metodo;
+      // Reativa visualmente a opção anteriormente selecionada
+      document.querySelectorAll('.frete-opt').forEach(el => el.classList.remove('selected'));
+      const fo = document.getElementById('fo-' + freteMetodo);
+      if (fo) fo.classList.add('selected');
+      _savedFrete = null;
+    } else {
+      freteValor = 0; freteMetodo = '';
+    }
     const el = document.getElementById('frete-gratis');
     el.textContent = '🎉 Frete grátis para pedidos acima de R$ 3.000!';
     el.classList.remove('show');
@@ -2180,6 +2194,7 @@ async function calcFrete() {
 
     // Frete grátis pelo cupom
     if (cupomAplicado && cupomData?.frete_gratis_acima > 0 && getTotal() >= cupomData.frete_gratis_acima) {
+      _savedFrete = { valor: 0, metodo: '' }; // ainda não havia seleção, salva vazio
       freteValor  = 0;
       freteMetodo = 'gratis-cupom';
       metodos.style.display = 'none';
