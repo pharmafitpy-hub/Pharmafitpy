@@ -287,8 +287,8 @@
         <div class="auth-field"><label>E-mail do cadastro</label>
           <input type="email" id="e_email" placeholder="seu@email.com"/>
         </div>
-        <div class="auth-field"><label>Seu nome (exatamente como cadastrado)</label>
-          <input type="text" id="e_nome" placeholder="Ex: Ana Silva"/>
+        <div class="auth-field"><label>Data de Nascimento</label>
+          <input type="date" id="e_nasc"/>
         </div>
         <div class="auth-field"><label>Nova Senha</label>
           <input type="password" id="e_nova" placeholder="Mínimo 6 caracteres"/>
@@ -305,6 +305,10 @@
       <div id="form-reg" style="display:none">
         <div class="auth-field"><label>Seu nome</label>
           <input type="text" id="r_nome" placeholder="Ex: Ana Silva"
+                 onkeydown="if(event.key==='Enter')document.getElementById('r_nasc').focus()"/>
+        </div>
+        <div class="auth-field"><label>Data de Nascimento</label>
+          <input type="date" id="r_nasc"
                  onkeydown="if(event.key==='Enter')document.getElementById('r_email').focus()"/>
         </div>
         <div class="auth-field"><label>E-mail</label>
@@ -331,8 +335,9 @@
 
     <!-- ABAS -->
     <div class="mode-tabs">
-      <button class="mode-tab active" id="tab-criar" onclick="setMode('criar')">✅ Criar Cupom</button>
-      <button class="mode-tab"        id="tab-hist"  onclick="setMode('hist')">📊 Meu Histórico</button>
+      <button class="mode-tab active" id="tab-criar"  onclick="setMode('criar')">✅ Criar Cupom</button>
+      <button class="mode-tab"        id="tab-hist"   onclick="setMode('hist')">📊 Histórico</button>
+      <button class="mode-tab"        id="tab-cupons" onclick="setMode('cupons')">🗂️ Meus Cupons</button>
     </div>
 
     <!-- ══ CRIAR CUPOM ══ -->
@@ -384,8 +389,23 @@
             <button class="valid-btn" onclick="setValidade(this,7)">7 dias</button>
             <button class="valid-btn" onclick="setValidade(this,15)">15 dias</button>
             <button class="valid-btn" onclick="setValidade(this,30)">30 dias</button>
+            <button class="valid-btn" id="btn-indet" onclick="setValidadeIndet(this)">♾️ Indeterminado</button>
           </div>
           <input type="date" id="f_validade" style="margin-top:10px"/>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-title">⚙️ Opções Extras</div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <label style="display:flex;align-items:center;gap:12px;cursor:pointer;font-size:.88rem;color:var(--light)">
+            <input type="checkbox" id="f_parcelamento" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer"/>
+            <span>Ativar parcelamento sem juros (máx. 3×)</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:12px;cursor:pointer;font-size:.88rem;color:var(--light)">
+            <input type="checkbox" id="f_frete_gratis" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer"/>
+            <span>Frete grátis para compras acima de R$ 5.000</span>
+          </label>
         </div>
       </div>
 
@@ -427,6 +447,21 @@
       </div>
 
     </div><!-- fim #secao-historico -->
+
+    <!-- ══ MEUS CUPONS ══ -->
+    <div id="secao-meus-cupons" style="display:none">
+      <div class="sec">
+        <div class="sec-title">🗂️ Meus Cupons Ativos</div>
+        <p style="font-size:.83rem;color:var(--gray);margin-bottom:16px;line-height:1.6">
+          Cupons que você criou e ainda estão ativos na plataforma.
+        </p>
+        <button class="btn-buscar" id="btn-carregar-cupons" onclick="carregarMeusCupons()">
+          🔄 Carregar Meus Cupons
+        </button>
+        <div id="mc-err" class="hist-err"></div>
+      </div>
+      <div id="mc-lista"></div>
+    </div><!-- fim #secao-meus-cupons -->
 
   </div><!-- fim #tela-app -->
 
@@ -537,18 +572,18 @@ async function confirmarTrocarSenha() {
 
 async function recuperarSenha() {
   const email = document.getElementById('e_email').value.trim().toLowerCase();
-  const nome  = document.getElementById('e_nome').value.trim();
+  const nasc  = document.getElementById('e_nasc').value;
   const nova  = document.getElementById('e_nova').value.trim();
   const conf  = document.getElementById('e_conf').value.trim();
   const msg   = document.getElementById('esqueci-msg');
   const btn   = document.getElementById('btn-esqueci');
   msg.className = 'auth-msg';
-  if (!email || !nome || !nova || !conf) { msg.textContent = 'Preencha todos os campos.'; msg.classList.add('err'); return; }
+  if (!email || !nasc || !nova || !conf) { msg.textContent = 'Preencha todos os campos.'; msg.classList.add('err'); return; }
   if (nova !== conf) { msg.textContent = 'As senhas não coincidem.'; msg.classList.add('err'); return; }
   if (nova.length < 6) { msg.textContent = 'Nova senha deve ter ao menos 6 caracteres.'; msg.classList.add('err'); return; }
   btn.disabled = true; btn.textContent = 'Verificando…';
   try {
-    const params = new URLSearchParams({ action:'trocar_senha', email, nome, nova_senha:nova });
+    const params = new URLSearchParams({ action:'trocar_senha', email, data_nasc:nasc, nova_senha:nova });
     const r    = await fetch(`${SHEETS_URL}?${params}`);
     const data = await r.json();
     if (data.ok) {
@@ -587,17 +622,18 @@ async function fazerLogin() {
 
 async function criarConta() {
   const nome  = document.getElementById('r_nome').value.trim();
+  const nasc  = document.getElementById('r_nasc').value;
   const email = document.getElementById('r_email').value.trim().toLowerCase();
   const senha = document.getElementById('r_senha').value.trim();
   const conf  = document.getElementById('r_conf').value.trim();
   const msg   = document.getElementById('reg-msg');
   const btn   = document.getElementById('btn-reg');
-  if (!nome || !email || !senha || !conf) { msg.textContent = 'Preencha todos os campos.'; msg.className = 'auth-msg err'; return; }
+  if (!nome || !nasc || !email || !senha || !conf) { msg.textContent = 'Preencha todos os campos.'; msg.className = 'auth-msg err'; return; }
   if (senha !== conf) { msg.textContent = 'As senhas não coincidem.'; msg.className = 'auth-msg err'; return; }
   if (senha.length < 6) { msg.textContent = 'Senha deve ter ao menos 6 caracteres.'; msg.className = 'auth-msg err'; return; }
   msg.textContent = ''; btn.disabled = true; btn.textContent = 'Criando conta…';
   try {
-    const params = new URLSearchParams({ action:'registrar', nome, email, senha });
+    const params = new URLSearchParams({ action:'registrar', nome, data_nasc:nasc, email, senha });
     const r    = await fetch(`${SHEETS_URL}?${params}`);
     const data = await r.json();
     if (data.ok) {
@@ -624,10 +660,12 @@ function entrarNoApp(nome) {
 let modoAtual = 'criar';
 function setMode(modo) {
   modoAtual = modo;
-  document.getElementById('tab-criar').classList.toggle('active', modo === 'criar');
-  document.getElementById('tab-hist').classList.toggle('active',  modo === 'hist');
-  document.getElementById('form-criar').style.display       = modo === 'criar' ? '' : 'none';
-  document.getElementById('secao-historico').style.display  = modo === 'hist'  ? '' : 'none';
+  document.getElementById('tab-criar').classList.toggle('active',  modo === 'criar');
+  document.getElementById('tab-hist').classList.toggle('active',   modo === 'hist');
+  document.getElementById('tab-cupons').classList.toggle('active', modo === 'cupons');
+  document.getElementById('form-criar').style.display           = modo === 'criar'  ? '' : 'none';
+  document.getElementById('secao-historico').style.display      = modo === 'hist'   ? '' : 'none';
+  document.getElementById('secao-meus-cupons').style.display    = modo === 'cupons' ? '' : 'none';
   window.scrollTo({ top:0, behavior:'smooth' });
 }
 
@@ -720,6 +758,14 @@ function setValidade(btn, dias) {
   btn.classList.add('active');
   const d = new Date(); d.setDate(d.getDate()+dias);
   document.getElementById('f_validade').valueAsDate = d;
+  document.getElementById('f_validade').style.opacity = '1';
+}
+
+function setValidadeIndet(btn) {
+  document.querySelectorAll('.valid-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('f_validade').value = '';
+  document.getElementById('f_validade').style.opacity = '0.35';
 }
 
 // ── CRIAR CUPOM ───────────────────────────────────────────────────────────────
@@ -729,11 +775,12 @@ async function criarCupom() {
   alertEl.classList.remove('show');
   const codigo   = document.getElementById('f_codigo').value.trim().toUpperCase();
   const validade = document.getElementById('f_validade').value;
+  const indet    = document.getElementById('btn-indet').classList.contains('active');
   if (selecionados.size===0 && tipoAtual!=='pct') { mostrarAlerta('Selecione pelo menos 1 produto.'); return; }
-  if (!codigo)   { mostrarAlerta('Gere ou digite um código para o cupom.'); return; }
-  if (!validade) { mostrarAlerta('Defina a validade do cupom.'); return; }
-  const [y,m,d] = validade.split('-');
-  const validadeFmt = `${d}/${m}/${y}`;
+  if (!codigo) { mostrarAlerta('Gere ou digite um código para o cupom.'); return; }
+  if (!indet && !validade) { mostrarAlerta('Defina a validade do cupom ou clique em Indeterminado.'); return; }
+  let validadeFmt = '';
+  if (validade && !indet) { const [y,m,d] = validade.split('-'); validadeFmt = `${d}/${m}/${y}`; }
   let produtos, precos, valor;
   if (tipoAtual==='pct') {
     valor = parseFloat(document.getElementById('f_pct').value);
@@ -757,12 +804,14 @@ async function criarCupom() {
   const btn = document.getElementById('btn-submit');
   btn.disabled=true; btn.textContent='Salvando…';
   try {
-    // Usa email+senha da sessão — sem pin global
+    const parcelamento = document.getElementById('f_parcelamento').checked ? 'SIM' : '';
+    const freteGratis  = document.getElementById('f_frete_gratis').checked  ? '5000' : '';
     const params = new URLSearchParams({
       action:'criarcupom',
       email:SESSION.email, senha:SESSION.senha,
       codigo, tipo:tipoAtual==='pct'?'%':'fixo',
       valor:valor||0, produtos, precos, validade:validadeFmt,
+      parcelamento, frete_gratis_acima:freteGratis,
     });
     const res  = await fetch(`${SHEETS_URL}?${params}`);
     const data = await res.json();
@@ -796,7 +845,10 @@ function novoCupom() {
   document.getElementById('success-box').classList.remove('show');
   document.getElementById('f_codigo').value='';
   document.getElementById('f_validade').value='';
+  document.getElementById('f_validade').style.opacity='1';
   document.getElementById('f_pct').value='';
+  document.getElementById('f_parcelamento').checked=false;
+  document.getElementById('f_frete_gratis').checked=false;
   document.querySelectorAll('.valid-btn').forEach(b=>b.classList.remove('active'));
   selecionados.clear(); filtrarProdutos();
   if (tipoAtual==='fixo') renderTabelaPrecos();
@@ -851,6 +903,68 @@ function mostrarHistorico(data) {
       ${itensH?`<div class="ped-prods">${itensH}</div>`:''}
     </div>`;
   }).join('');
+}
+
+// ── MEUS CUPONS ───────────────────────────────────────────────────────────────
+async function carregarMeusCupons() {
+  if (!SESSION) return;
+  const errEl = document.getElementById('mc-err');
+  const btn   = document.getElementById('btn-carregar-cupons');
+  const lista = document.getElementById('mc-lista');
+  errEl.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Carregando…';
+  try {
+    const r    = await fetch(`${SHEETS_URL}?action=meus_cupons&email=${encodeURIComponent(SESSION.email)}&senha=${encodeURIComponent(SESSION.senha)}`);
+    const data = await r.json();
+    if (!data.ok) { errEl.textContent = '⚠️ '+(data.erro||'Erro.'); errEl.style.display='block'; return; }
+    renderMeusCupons(data.cupons||[]);
+  } catch(e) { errEl.textContent = '⚠️ Erro de conexão.'; errEl.style.display='block'; }
+  finally { btn.disabled=false; btn.textContent='🔄 Carregar Meus Cupons'; }
+}
+
+function renderMeusCupons(cupons) {
+  const lista = document.getElementById('mc-lista');
+  if (!cupons.length) {
+    lista.innerHTML = '<div class="hist-empty">Você não tem cupons ativos no momento.</div>';
+    return;
+  }
+  lista.innerHTML = cupons.map(c => {
+    const extras = [];
+    if (c.parcelamento)       extras.push('⚡ Parcelamento sem juros (3×)');
+    if (c.frete_gratis_acima) extras.push(`🚚 Frete grátis acima de R$ ${fmtBrl(c.frete_gratis_acima)}`);
+    const tipoStr = c.tipo === '%' ? `${c.valor}% de desconto` : 'Preço fixo por produto';
+    const prodStr = c.produtos === 'todos' ? 'Todos os produtos' : c.produtos;
+    return `<div class="sec" style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+        <div>
+          <div style="font-family:monospace;font-size:1.35rem;font-weight:800;letter-spacing:6px;color:var(--accent)">${c.codigo}</div>
+          <div style="font-size:.78rem;color:var(--light);margin-top:4px">${tipoStr}</div>
+          <div style="font-size:.72rem;color:var(--gray);margin-top:2px">Produtos: ${prodStr}</div>
+          ${extras.map(e=>`<div style="font-size:.72rem;color:var(--green);margin-top:2px">${e}</div>`).join('')}
+          <div style="font-size:.68rem;color:var(--gray);margin-top:6px">Validade: ${c.validade} · Criado: ${c.criado}</div>
+        </div>
+        <button onclick="deletarCupomMeu('${c.codigo}',this)"
+          style="background:transparent;border:1px solid var(--red);color:var(--red);padding:8px 16px;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">
+          🗑️ Excluir
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function deletarCupomMeu(codigo, btn) {
+  if (!confirm(`Excluir o cupom ${codigo}? Esta ação não pode ser desfeita.`)) return;
+  btn.disabled = true; btn.textContent = 'Excluindo…';
+  try {
+    const params = new URLSearchParams({ action:'deletar_cupom', email:SESSION.email, senha:SESSION.senha, codigo });
+    const r    = await fetch(`${SHEETS_URL}?${params}`);
+    const data = await r.json();
+    if (data.ok) {
+      carregarMeusCupons();
+    } else {
+      alert(data.erro || 'Erro ao excluir.'); btn.disabled=false; btn.textContent='🗑️ Excluir';
+    }
+  } catch(e) { alert('Erro de conexão.'); btn.disabled=false; btn.textContent='🗑️ Excluir'; }
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
