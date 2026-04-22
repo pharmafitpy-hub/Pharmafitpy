@@ -922,26 +922,63 @@ async function carregarMeusCupons() {
   finally { btn.disabled=false; btn.textContent='🔄 Carregar Meus Cupons'; }
 }
 
+function getNomeProduto(key) {
+  const p = PRODUTOS.find(x => x.id === key);
+  if (p) return `${p.icone||'💊'} ${p.nome}${p.conc ? ' <span style="opacity:.6">' + p.conc + '</span>' : ''}`;
+  return key;
+}
+
+function toggleProdsList(uid) {
+  const extra = document.getElementById('pe-' + uid);
+  const btn   = document.getElementById('pb-' + uid);
+  if (!extra || !btn) return;
+  const aberto = extra.style.display !== 'none';
+  extra.style.display = aberto ? 'none' : '';
+  btn.textContent = aberto ? `▼ Ver mais (${extra.dataset.count} produtos)` : '▲ Ocultar';
+}
+
 function renderMeusCupons(cupons) {
-  const lista = document.getElementById('mc-lista');
+  const lista  = document.getElementById('mc-lista');
   if (!cupons.length) {
     lista.innerHTML = '<div class="hist-empty">Você não tem cupons ativos no momento.</div>';
     return;
   }
-  lista.innerHTML = cupons.map(c => {
+  const LIMITE = 3;
+  lista.innerHTML = cupons.map((c, idx) => {
     const extras = [];
     if (c.parcelamento)       extras.push('⚡ Parcelamento sem juros (3×)');
     if (c.frete_gratis_acima) extras.push(`🚚 Frete grátis acima de R$ ${fmtBrl(c.frete_gratis_acima)}`);
     const tipoStr = c.tipo === '%' ? `${c.valor}% de desconto` : 'Preço fixo por produto';
-    const prodStr = c.produtos === 'todos' ? 'Todos os produtos' : c.produtos;
+
+    let prodsHtml = '';
+    if (c.produtos === 'todos') {
+      prodsHtml = '<div style="font-size:.72rem;color:var(--gray);margin-top:5px">🌐 Todos os produtos</div>';
+    } else {
+      const nomes = c.produtos.split(',').map(k => getNomeProduto(k.trim())).filter(Boolean);
+      const vis   = nomes.slice(0, LIMITE);
+      const rest  = nomes.slice(LIMITE);
+      const linhaStyle = 'font-size:.72rem;color:var(--gray);line-height:1.8';
+      prodsHtml = `<div style="${linhaStyle};margin-top:5px">
+        ${vis.map(n => `<div>• ${n}</div>`).join('')}
+        ${rest.length ? `
+          <div id="pe-${idx}" style="display:none" data-count="${rest.length}">
+            ${rest.map(n => `<div>• ${n}</div>`).join('')}
+          </div>
+          <button id="pb-${idx}" onclick="toggleProdsList(${idx})"
+            style="background:transparent;border:none;color:var(--lavender);font-size:.7rem;cursor:pointer;padding:3px 0;font-family:inherit;text-decoration:underline;text-underline-offset:2px">
+            ▼ Ver mais (${rest.length} produtos)
+          </button>` : ''}
+      </div>`;
+    }
+
     return `<div class="sec" style="margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
-        <div>
+        <div style="flex:1;min-width:0">
           <div style="font-family:monospace;font-size:1.35rem;font-weight:800;letter-spacing:6px;color:var(--accent)">${c.codigo}</div>
-          <div style="font-size:.78rem;color:var(--light);margin-top:4px">${tipoStr}</div>
-          <div style="font-size:.72rem;color:var(--gray);margin-top:2px">Produtos: ${prodStr}</div>
-          ${extras.map(e=>`<div style="font-size:.72rem;color:var(--green);margin-top:2px">${e}</div>`).join('')}
-          <div style="font-size:.68rem;color:var(--gray);margin-top:6px">Validade: ${c.validade} · Criado: ${c.criado}</div>
+          <div style="font-size:.78rem;color:var(--light);margin-top:3px">${tipoStr}</div>
+          ${prodsHtml}
+          ${extras.map(e => `<div style="font-size:.72rem;color:var(--green);margin-top:2px">${e}</div>`).join('')}
+          <div style="font-size:.68rem;color:var(--gray);margin-top:7px;opacity:.7">Validade: ${c.validade} · Criado: ${c.criado}</div>
         </div>
         <button onclick="deletarCupomMeu('${c.codigo}',this)"
           style="background:transparent;border:1px solid var(--red);color:var(--red);padding:8px 16px;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">
