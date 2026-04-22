@@ -926,7 +926,9 @@ function abrirProtocolo(id) {
 
 function abrirInformativo() {
   const footer = document.getElementById('pm-info-footer');
-  const pagina = footer.dataset.pagina;
+  let pagina = footer.dataset.pagina;
+  if (pagina && !pagina.startsWith('http') && !pagina.includes('/'))
+    pagina = 'informativos/' + pagina;
   if (window.innerWidth < 768) {
     window.open(pagina, '_blank');
   } else {
