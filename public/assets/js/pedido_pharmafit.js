@@ -1212,12 +1212,15 @@ function buildReview() {
     const items = [];
     if (cupomData.parcelamento && selectedPayment === 'Cartão de Crédito') {
       const parc = parseInt(document.getElementById('f_parcelas').value) || 1;
-      const origConf = PARCELAS_CONFIG.find(p => p.parcelas === parc);
-      const jurosOrig = origConf ? origConf.juros : 0;
-      const econJuros = jurosOrig > 0
-        ? ` <span style="opacity:.85">· economia de R$ ${(getTotal() * jurosOrig / 100).toLocaleString('pt-BR',{minimumFractionDigits:2})} em juros</span>`
-        : '';
-      items.push(`⚡ Parcelamento sem juros (${parc}×)${econJuros} · cupom <strong>${cupomCodigo}</strong>`);
+      if (parc <= 3) {
+        const origConf  = PARCELAS_CONFIG.find(p => p.parcelas === parc);
+        const jurosOrig = origConf ? origConf.juros : 0;
+        const base      = getTotal() - (cupomAplicado ? calcularDescontoCupom() : 0);
+        const econJuros = jurosOrig > 0
+          ? ` <span style="opacity:.85">· economia de R$ ${(base * jurosOrig / 100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} em juros</span>`
+          : '';
+        items.push(`⚡ Parcelamento sem juros (${parc}×)${econJuros} · cupom <strong>${cupomCodigo}</strong>`);
+      }
     }
     if (freteMetodo === 'gratis-cupom') {
       const econFrete = _savedFrete?.valor > 0
@@ -1241,7 +1244,7 @@ function buildReview() {
     ${beneficiosReviewHtml}
     <div style="border-top:1px solid rgba(255,255,255,.15);margin:10px 0"></div>
     <div class="rtb-label">Total do Pedido</div>
-    <div class="rtb-amount">R$ ${totalFinal.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+    <div class="rtb-amount">R$ ${totalFinal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
     <div class="rtb-method">${selectedPayment}</div>`;
 
   renderRecomendacoesRevisao();
