@@ -1,0 +1,24 @@
+/* PharmaFit B2C — variáveis e reset compartilhados */
+:root {
+  --bg:       #0F0B1A;
+  --surface:  #1A1428;
+  --card:     #1A1428;
+  --border:   #2D2440;
+  --accent:   #F59E0B;
+  --accent-d: #D97706;
+  --green:    #10B981;
+  --blue:     #7C3AED;
+  --purple:   #7C3AED;
+  --red:      #EF4444;
+  --wa:       #25D366;
+  --wa-d:     #1DA851;
+  --white:    #FFFFFF;
+  --gray:     #9CA3AF;
+  --gray2:    #7B6E9A;
+  --light:    #F5F3FF;
+  --text:     #FFFFFF;
+  --input-bg: #1F1935;
+  --lavender: #A78BFA;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

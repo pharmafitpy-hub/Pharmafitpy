@@ -1,6 +1,6 @@
 # Arquivos de desenvolvimento local — nunca sobem pro GitHub
 _dev/
-assets/
+/assets/
 node_modules/
 .env
 *.log
