@@ -177,6 +177,27 @@
   .hist-empty{color:var(--gray);font-size:.85rem;padding:28px 0;text-align:center;line-height:1.7}
   .hist-err{color:var(--red);font-size:.82rem;margin-top:10px;display:none}
 
+  /* ── MODAL ── */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center}
+  .modal-overlay.show{display:flex}
+  .modal-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 32px;width:90%;max-width:420px}
+  .modal-title{font-size:1rem;font-weight:800;color:var(--accent);margin-bottom:20px}
+  .modal-actions{display:flex;gap:10px;margin-top:20px;justify-content:flex-end}
+  .btn-modal-cancel{background:transparent;border:1px solid var(--border);color:var(--gray);padding:9px 20px;border-radius:8px;font-size:.85rem;cursor:pointer;font-family:inherit}
+  .btn-modal-cancel:hover{border-color:var(--red);color:var(--red)}
+  .btn-modal-ok{background:var(--accent);color:#000;border:none;padding:9px 22px;border-radius:8px;font-size:.85rem;font-weight:800;cursor:pointer;font-family:inherit}
+  .btn-modal-ok:hover{opacity:.85}
+  .btn-modal-ok:disabled{opacity:.4;cursor:default}
+  .modal-msg{font-size:.8rem;margin-top:10px;min-height:18px}
+  .modal-msg.err{color:var(--red)}
+  .modal-msg.ok{color:var(--green)}
+
+  /* ── LINK ESQUECI ── */
+  .link-esqueci{display:block;text-align:center;font-size:.78rem;color:var(--gray);margin-top:14px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+  .link-esqueci:hover{color:var(--accent)}
+  .btn-voltar-login{background:transparent;border:none;color:var(--gray);font-size:.8rem;cursor:pointer;font-family:inherit;text-decoration:underline;margin-bottom:16px;padding:0}
+  .btn-voltar-login:hover{color:var(--accent)}
+
   @media(max-width:600px){
     .wrap{padding:16px}
     .auth-box{padding:24px 20px}
@@ -206,7 +227,29 @@
   </div>
   <div class="header-spacer"></div>
   <span class="header-nome" id="header-nome"></span>
-  <button class="btn-logout" onclick="logout()" style="margin-left:12px">Sair</button>
+  <button class="btn-logout" onclick="abrirTrocarSenha()" style="margin-left:12px;border-color:var(--border);color:var(--light)">🔑 Trocar Senha</button>
+  <button class="btn-logout" onclick="logout()" style="margin-left:6px">Sair</button>
+</div>
+
+<!-- ══ MODAL TROCAR SENHA ══ -->
+<div class="modal-overlay" id="modal-senha">
+  <div class="modal-box">
+    <div class="modal-title">🔑 Trocar Senha</div>
+    <div class="auth-field"><label>Senha Atual</label>
+      <input type="password" id="ts_atual" placeholder="••••••" onkeydown="if(event.key==='Enter')document.getElementById('ts_nova').focus()"/>
+    </div>
+    <div class="auth-field"><label>Nova Senha</label>
+      <input type="password" id="ts_nova" placeholder="Mínimo 6 caracteres" onkeydown="if(event.key==='Enter')document.getElementById('ts_conf').focus()"/>
+    </div>
+    <div class="auth-field"><label>Confirmar Nova Senha</label>
+      <input type="password" id="ts_conf" placeholder="Repita a nova senha" onkeydown="if(event.key==='Enter')confirmarTrocarSenha()"/>
+    </div>
+    <div class="modal-msg" id="ts-msg"></div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="fecharModal('modal-senha')">Cancelar</button>
+      <button class="btn-modal-ok" id="btn-ts-ok" onclick="confirmarTrocarSenha()">Salvar</button>
+    </div>
+  </div>
 </div>
 
 <div class="wrap">
@@ -218,7 +261,7 @@
       <div class="auth-brand">Área das Vendedoras</div>
       <div class="auth-tagline">Entre ou crie sua conta para gerenciar seus cupons</div>
 
-      <div class="auth-tabs">
+      <div class="auth-tabs" id="auth-tabs-el">
         <button class="auth-tab active" id="atab-login" onclick="setAuthMode('login')">Entrar</button>
         <button class="auth-tab"        id="atab-reg"   onclick="setAuthMode('reg')">Criar Conta</button>
       </div>
@@ -235,6 +278,27 @@
         </div>
         <button class="btn-auth entrar" id="btn-login" onclick="fazerLogin()">Entrar →</button>
         <div class="auth-msg" id="login-msg"></div>
+        <span class="link-esqueci" onclick="setAuthMode('esqueci')">Esqueci minha senha</span>
+      </div>
+
+      <!-- ESQUECI SENHA -->
+      <div id="form-esqueci" style="display:none">
+        <button class="btn-voltar-login" onclick="setAuthMode('login')">← Voltar</button>
+        <div class="auth-field"><label>E-mail do cadastro</label>
+          <input type="email" id="e_email" placeholder="seu@email.com"/>
+        </div>
+        <div class="auth-field"><label>Seu nome (exatamente como cadastrado)</label>
+          <input type="text" id="e_nome" placeholder="Ex: Ana Silva"/>
+        </div>
+        <div class="auth-field"><label>Nova Senha</label>
+          <input type="password" id="e_nova" placeholder="Mínimo 6 caracteres"/>
+        </div>
+        <div class="auth-field"><label>Confirmar Nova Senha</label>
+          <input type="password" id="e_conf" placeholder="Repita a nova senha"
+                 onkeydown="if(event.key==='Enter')recuperarSenha()"/>
+        </div>
+        <button class="btn-auth registrar" id="btn-esqueci" onclick="recuperarSenha()">Redefinir Senha</button>
+        <div class="auth-msg" id="esqueci-msg"></div>
       </div>
 
       <!-- REGISTRO -->
@@ -423,10 +487,78 @@ function logout() {
 function setAuthMode(modo) {
   document.getElementById('atab-login').classList.toggle('active', modo === 'login');
   document.getElementById('atab-reg').classList.toggle('active',   modo === 'reg');
-  document.getElementById('form-login').style.display = modo === 'login' ? '' : 'none';
-  document.getElementById('form-reg').style.display   = modo === 'reg'   ? '' : 'none';
+  document.getElementById('form-login').style.display   = modo === 'login'   ? '' : 'none';
+  document.getElementById('form-reg').style.display     = modo === 'reg'     ? '' : 'none';
+  document.getElementById('form-esqueci').style.display = modo === 'esqueci' ? '' : 'none';
+  document.getElementById('auth-tabs-el').style.display = modo === 'esqueci' ? 'none' : '';
   document.getElementById('login-msg').textContent = '';
   document.getElementById('reg-msg').textContent   = '';
+  document.getElementById('esqueci-msg').textContent = '';
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────────────
+function abrirTrocarSenha() {
+  document.getElementById('ts_atual').value = '';
+  document.getElementById('ts_nova').value  = '';
+  document.getElementById('ts_conf').value  = '';
+  document.getElementById('ts-msg').textContent = '';
+  document.getElementById('modal-senha').classList.add('show');
+  setTimeout(() => document.getElementById('ts_atual').focus(), 100);
+}
+function fecharModal(id) { document.getElementById(id).classList.remove('show'); }
+
+async function confirmarTrocarSenha() {
+  if (!SESSION) return;
+  const atual = document.getElementById('ts_atual').value.trim();
+  const nova  = document.getElementById('ts_nova').value.trim();
+  const conf  = document.getElementById('ts_conf').value.trim();
+  const msg   = document.getElementById('ts-msg');
+  const btn   = document.getElementById('btn-ts-ok');
+  msg.className = 'modal-msg';
+  if (!atual || !nova || !conf) { msg.textContent = 'Preencha todos os campos.'; msg.classList.add('err'); return; }
+  if (nova !== conf) { msg.textContent = 'As senhas não coincidem.'; msg.classList.add('err'); return; }
+  if (nova.length < 6) { msg.textContent = 'Nova senha deve ter ao menos 6 caracteres.'; msg.classList.add('err'); return; }
+  btn.disabled = true; btn.textContent = 'Salvando…';
+  try {
+    const params = new URLSearchParams({ action:'trocar_senha', email:SESSION.email, senha_atual:atual, nova_senha:nova });
+    const r    = await fetch(`${SHEETS_URL}?${params}`);
+    const data = await r.json();
+    if (data.ok) {
+      SESSION.senha = nova;
+      sessionStorage.setItem('pf_vendedora', JSON.stringify(SESSION));
+      msg.textContent = '✅ Senha alterada com sucesso!'; msg.classList.add('ok');
+      setTimeout(() => fecharModal('modal-senha'), 1800);
+    } else {
+      msg.textContent = data.erro || 'Erro ao alterar.'; msg.classList.add('err');
+    }
+  } catch(e) { msg.textContent = '⚠️ Erro de conexão.'; msg.classList.add('err'); }
+  finally { btn.disabled = false; btn.textContent = 'Salvar'; }
+}
+
+async function recuperarSenha() {
+  const email = document.getElementById('e_email').value.trim().toLowerCase();
+  const nome  = document.getElementById('e_nome').value.trim();
+  const nova  = document.getElementById('e_nova').value.trim();
+  const conf  = document.getElementById('e_conf').value.trim();
+  const msg   = document.getElementById('esqueci-msg');
+  const btn   = document.getElementById('btn-esqueci');
+  msg.className = 'auth-msg';
+  if (!email || !nome || !nova || !conf) { msg.textContent = 'Preencha todos os campos.'; msg.classList.add('err'); return; }
+  if (nova !== conf) { msg.textContent = 'As senhas não coincidem.'; msg.classList.add('err'); return; }
+  if (nova.length < 6) { msg.textContent = 'Nova senha deve ter ao menos 6 caracteres.'; msg.classList.add('err'); return; }
+  btn.disabled = true; btn.textContent = 'Verificando…';
+  try {
+    const params = new URLSearchParams({ action:'trocar_senha', email, nome, nova_senha:nova });
+    const r    = await fetch(`${SHEETS_URL}?${params}`);
+    const data = await r.json();
+    if (data.ok) {
+      msg.textContent = '✅ Senha redefinida! Faça login com a nova senha.'; msg.classList.add('ok');
+      setTimeout(() => setAuthMode('login'), 2200);
+    } else {
+      msg.textContent = data.erro || 'Erro ao redefinir.'; msg.classList.add('err');
+    }
+  } catch(e) { msg.textContent = '⚠️ Erro de conexão.'; msg.classList.add('err'); }
+  finally { btn.disabled = false; btn.textContent = 'Redefinir Senha'; }
 }
 
 async function fazerLogin() {
