@@ -254,7 +254,6 @@ function aplicarCupom() {
       sel.innerHTML = '<option value="1">1x sem juros</option><option value="2">2x sem juros</option><option value="3">3x sem juros</option>';
       sel.dataset.cupomParc = '1';
       if (['1','2','3'].includes(selAtual)) sel.value = selAtual; // restaura se válido
-      if (selectedPayment === 'Cartão de Crédito') calcInstallment();
       beneficios.push(`⚡ Parcelamento sem juros em até 3× ativado pelo cupom`);
     }
     // Frete grátis via cupom
@@ -276,6 +275,7 @@ function aplicarCupom() {
       benEl.innerHTML = beneficios.map(b => `<div style="font-size:.78rem;color:var(--green);font-weight:600">${b}</div>`).join('');
       benEl.style.display = 'flex';
     }
+    if (selectedPayment === 'Cartão de Crédito') calcInstallment();
     msg.innerHTML = `<div class="cupom-ok">${msgTxt}</div>`;
     buildReview();
   } else {
@@ -736,6 +736,8 @@ function updateTotal() {
   });
   document.getElementById('total-display').textContent = total.toLocaleString('pt-BR', {minimumFractionDigits:2});
   document.getElementById('items-count').textContent = `${count} produto(s) · ${Object.keys(cart).length} tipo(s)`;
+  if (cupomAplicado && cupomData?.frete_gratis_acima > 0 && freteEstado) selecionarFrete(freteMetodo || 'jadlog');
+  if (selectedPayment === 'Cartão de Crédito') calcInstallment();
 }
 
 function getTotal() {
@@ -944,15 +946,16 @@ function selectPayment(method) {
 
 function calcInstallment() {
   const parcelas = parseInt(document.getElementById('f_parcelas').value);
-  let total = getTotal();
+  if (!parcelas) return;
   const semJurosCupom = cupomAplicado && cupomData?.parcelamento;
-  if (!semJurosCupom) {
-    const config = PARCELAS_CONFIG.find(p => p.parcelas === parcelas);
-    const juros  = config ? config.juros : 0;
-    if (juros > 0) total *= (1 + juros / 100);
-  }
+  const config = PARCELAS_CONFIG.find(p => p.parcelas === parcelas);
+  let juros = (!semJurosCupom && config) ? config.juros : 0;
+  const desconto = cupomAplicado ? calcularDescontoCupom() : 0;
+  let total = getTotal() + freteValor - desconto;
+  if (total < 0) total = 0;
+  if (juros > 0) total *= (1 + juros / 100);
   const por = total / parcelas;
-  document.getElementById('f_parcela_val').value = `R$ ${por.toLocaleString('pt-BR', {minimumFractionDigits:2})}`;
+  document.getElementById('f_parcela_val').value = `R$ ${por.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
 }
 
 // ─── NAVIGATION ─────────────────────────────────────────────────────────────
@@ -1332,7 +1335,8 @@ function getFinalTotal() {
   if (selectedPayment === 'Cartão de Crédito') {
     const parc   = parseInt(document.getElementById('f_parcelas').value);
     const config = PARCELAS_CONFIG.find(p => p.parcelas === parc);
-    const juros  = config ? config.juros : 0;
+    let juros  = config ? config.juros : 0;
+    if (cupomAplicado && cupomData?.parcelamento && parc <= 3) juros = 0;
     if (juros > 0) total *= (1 + juros / 100);
   }
   total -= calcularDescontoCupom();
