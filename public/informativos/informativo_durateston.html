@@ -1,3 +1,39 @@
+<!--
+  ╔══════════════════════════════════════════════════════════════╗
+  ║  INFORMATIVO TÉCNICO — TEMPLATE PHARMAFIT-PY                ║
+  ║  Produto: Durateston Plus Gold 10ml                         ║
+  ╠══════════════════════════════════════════════════════════════╣
+  ║  ESTRUTURA GERAL (2 páginas .page):                         ║
+  ║  Pág 1: header → info-strip → "O Que É" → seções técnicas  ║
+  ║  Pág 2: header-small → seções avançadas → pharmafit-banner  ║
+  ║         → referências científicas → footer + footer-note    ║
+  ╠══════════════════════════════════════════════════════════════╣
+  ║  O QUE CUSTOMIZAR POR PRODUTO:                              ║
+  ║  1. <title> — nome do produto                               ║
+  ║  2. :root — paleta de cores (ver abaixo)                    ║
+  ║     Tema escuro/dourado  → ex: Durateston (este arquivo)    ║
+  ║     Tema azul/âmbar      → ex: Tirzepatida 120mg            ║
+  ║  3. body { background } — cor do fundo externo da página    ║
+  ║  4. .header → .header-tag, .header-title, .header-subtitle  ║
+  ║     .header-badges → concentração / frasco / código         ║
+  ║  5. .info-strip → chips (.info-chip) e texto de contexto    ║
+  ║  6. Seção "O Que É..." → section-title + intro-text         ║
+  ║     + spec-grid (dados rápidos do produto)                  ║
+  ║  7. Conteúdo das seções (usar componentes do CSS):          ║
+  ║     blend-grid, timeline-box, mec-grid, conc-box,           ║
+  ║     diss-steps, uso-steps, escal-box, proto-grid,           ║
+  ║     pct-box, compare-table, two-col + box-cards             ║
+  ║  8. .header-small (pág 2) → título e subtítulo              ║
+  ║  9. .footer → brand text e código do documento              ║
+  ║  10. Referências científicas → .ref-list                    ║
+  ╠══════════════════════════════════════════════════════════════╣
+  ║  NÃO ALTERAR (padronizado para todos os informativos):      ║
+  ║  • .pharmafit-banner — tagline e telefone da Pharmafit-PY   ║
+  ║  • .footer-note — aviso de uso profissional                 ║
+  ║  • Link para ../assets/css/informativo.css                  ║
+  ║  • Fontes: Montserrat + Lato (Google Fonts)                 ║
+  ╚══════════════════════════════════════════════════════════════╝
+-->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -23,7 +59,6 @@
       --header-hl:  #F5C842;
     }
     body { background: #c8c8b8; }
-    .header-logo img, .header-small img { border-radius: 10px; border: 2px solid rgba(212,175,55,0.5); }
     .proto-head.p1 { background: linear-gradient(135deg, var(--gold) 0%, var(--gold-mid) 100%); }
     .proto-head.p2 { background: linear-gradient(135deg, var(--petrol-dark) 0%, var(--petrol) 100%); }
     .proto-head.p3 { background: linear-gradient(135deg, var(--petrol) 0%, var(--gold) 100%); }
@@ -57,6 +92,8 @@
   </div>
 
   <div class="content">
+    <div class="section">
+      <div class="section-title"><span class="st-icon">💉</span><h2>O Que É o Durateston Plus Gold?</h2><div class="st-line"></div></div>
     <div class="intro-strip">
       <div class="intro-icon">💉</div>
       <div class="intro-text">
@@ -70,6 +107,7 @@
           <div class="spec-item"><div class="s-val">~21 dias</div><div class="s-lbl">Duração ativa</div></div>
         </div>
       </div>
+    </div>
     </div>
 
     <div class="section">
@@ -321,19 +359,29 @@
       </table>
     </div>
 
-    <div class="two-col">
-      <div class="box-card adv">
-        <div class="box-title">⚠️ Contraindicações &amp; Precauções</div>
-        <div class="adv-item"><span class="adv-icon">🔴</span><div class="adv-text"><strong>Câncer de próstata ou mama masculino</strong> — contraindicação absoluta. Contraindicado também em mulheres (virilização).</div></div>
-        <div class="adv-item"><span class="adv-icon">🔴</span><div class="adv-text"><strong>Hematócrito &gt; 52%</strong> — reduzir dose ou suspender. Risco trombótico aumentado; monitorar regularmente.</div></div>
-        <div class="adv-item"><span class="adv-icon">🔴</span><div class="adv-text"><strong>Adolescentes</strong> — não usar em indivíduos com epífises abertas. Risco de fechamento prematuro ósseo.</div></div>
-        <div class="adv-item"><span class="adv-icon">🟡</span><div class="adv-text"><strong>Estradiol elevado</strong> — usar anastrozol 0,25–0,5mg 2×/sem conforme exames. Não bloquear excessivamente.</div></div>
-        <div class="adv-item"><span class="adv-icon">🟡</span><div class="adv-text"><strong>Hiperplasia prostática</strong> — monitorar PSA trimestralmente. Contraindicado em HPB grave.</div></div>
-        <div class="adv-item"><span class="adv-icon">⚪</span><div class="adv-text"><strong>Uso exclusivo</strong> sob prescrição e acompanhamento médico especializado (endocrinologista / urologista).</div></div>
+    <div class="box-card adv">
+      <div class="box-title">⚠️ Contraindicações &amp; Precauções</div>
+      <div class="adv-item"><span class="adv-icon">🔴</span><div class="adv-text"><strong>Câncer de próstata ou mama masculino</strong> — contraindicação absoluta. Contraindicado também em mulheres (virilização).</div></div>
+      <div class="adv-item"><span class="adv-icon">🔴</span><div class="adv-text"><strong>Hematócrito &gt; 52%</strong> — reduzir dose ou suspender. Risco trombótico aumentado; monitorar regularmente.</div></div>
+      <div class="adv-item"><span class="adv-icon">🔴</span><div class="adv-text"><strong>Adolescentes</strong> — não usar em indivíduos com epífises abertas. Risco de fechamento prematuro ósseo.</div></div>
+      <div class="adv-item"><span class="adv-icon">🟡</span><div class="adv-text"><strong>Estradiol elevado</strong> — usar anastrozol 0,25–0,5mg 2×/sem conforme exames. Não bloquear excessivamente.</div></div>
+      <div class="adv-item"><span class="adv-icon">🟡</span><div class="adv-text"><strong>Hiperplasia prostática</strong> — monitorar PSA trimestralmente. Contraindicado em HPB grave.</div></div>
+      <div class="adv-item"><span class="adv-icon">⚪</span><div class="adv-text"><strong>Uso exclusivo</strong> sob prescrição e acompanhamento médico especializado (endocrinologista / urologista).</div></div>
+    </div>
+
+    <div class="pharmafit-banner" style="margin-top:16px">
+      <img src="../assets/img/logo_pharmafit.png" alt="PharmaFit-PY" class="pf-logo" />
+      <div class="pf-text">
+        <div class="pf-label">Estudo Clínico Elaborado por</div>
+        <div class="pf-brand">Pharmafit<span>-PY</span></div>
+        <div class="pf-tagline">Compostos injetáveis de alta pureza com qualidade farmacêutica.<br>Protocolos personalizados para saúde, performance e bem-estar.</div>
       </div>
-      <div class="box-card ref">
-        <div class="box-title">📚 Referências Científicas</div>
-        <ul class="ref-list">
+      <a class="pf-cta" href="tel:+12142049853">📞 +1 (214) 204-9853</a>
+    </div>
+
+    <div class="box-card ref">
+      <div class="box-title">📚 Referências Científicas</div>
+      <ul class="ref-list">
           <li data-n="1">Bhasin S et al. (2010). <em>Testosterone Therapy in Men with Androgen Deficiency Syndromes: An Endocrine Society Clinical Practice Guideline.</em> J Clin Endocrinol Metab. 95(6):2536–2559.</li>
           <li data-n="2">Nieschlag E &amp; Behre HM. (2004). <em>Testosterone: Action, Deficiency, Substitution.</em> 3rd ed. Cambridge University Press.</li>
           <li data-n="3">Kaufman JM &amp; Vermeulen A. (2005). <em>The decline of androgen levels in elderly men and its clinical and therapeutic implications.</em> Endocr Rev. 26(6):833–876.</li>
@@ -342,7 +390,6 @@
           <li data-n="6">Saad F et al. (2011). <em>Long-term treatment of hypogonadal men with testosterone produces substantial and sustained weight loss.</em> Obesity. 21(10):1975–1981.</li>
           <li data-n="7">Corona G et al. (2016). <em>Testosterone supplementation and body composition: meta-analysis.</em> Eur J Endocrinol. 174(3):R99–R116.</li>
         </ul>
-      </div>
     </div>
   </div>
 

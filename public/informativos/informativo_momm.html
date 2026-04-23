@@ -1,3 +1,34 @@
+<!--
+  ╔══════════════════════════════════════════════════════════════╗
+  ║  INFORMATIVO TÉCNICO — TEMPLATE PHARMAFIT-PY                ║
+  ║  Produto: MOMM IV Cocktail                                  ║
+  ╠══════════════════════════════════════════════════════════════╣
+  ║  ESTRUTURA GERAL (2 páginas .page):                         ║
+  ║  Pág 1: header → info-strip → "O Que É" → seções técnicas  ║
+  ║  Pág 2: header-small → seções avançadas → pharmafit-banner  ║
+  ║         → referências científicas → footer + footer-note    ║
+  ╠══════════════════════════════════════════════════════════════╣
+  ║  O QUE CUSTOMIZAR POR PRODUTO:                              ║
+  ║  1. <title> — nome do produto                               ║
+  ║  2. :root — paleta de cores (ver abaixo)                    ║
+  ║     Tema azul/âmbar      → ex: Tirzepatida 120mg            ║
+  ║     Tema escuro/ouro     → ex: Durateston                   ║
+  ║  3. body { background } — cor do fundo externo da página    ║
+  ║  4. .header → textos: tag, título, subtítulo, badges        ║
+  ║  5. .info-strip → chips e texto de contexto                 ║
+  ║  6. Seção "O Que É..." → section-title + intro-text         ║
+  ║  7. Conteúdo das seções (componentes em informativo.css)    ║
+  ║  8. .header-small (pág 2) → título e subtítulo              ║
+  ║  9. .footer → brand text e código do documento              ║
+  ║  10. Referências científicas → .ref-list                    ║
+  ╠══════════════════════════════════════════════════════════════╣
+  ║  NÃO ALTERAR (padronizado para todos os informativos):      ║
+  ║  • .pharmafit-banner — tagline e telefone da Pharmafit-PY   ║
+  ║  • .footer-note — aviso de uso profissional                 ║
+  ║  • Link para ../assets/css/informativo.css                  ║
+  ║  • Fontes: Montserrat + Lato (Google Fonts)                 ║
+  ╚══════════════════════════════════════════════════════════════╝
+-->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -5,15 +36,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Informativo Técnico — MOMM IV Cocktail | PharmaFit-PY</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Lato:wght@300;400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/css/informativo.css" />
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --petrol:      #1B4F72;
+      --petrol:      #0E6655;
       --petrol-dark: #0D2B3E;
-      --petrol-mid:  #2471A3;
-      --petrol-lite: #D6EAF8;
-      --petrol-bg:   #EBF5FB;
+      --petrol-mid:  #17A589;
+      --petrol-lite: #D1F2EB;
+      --petrol-bg:   #E8F8F5;
       --amber:       #B7600A;
       --amber-mid:   #E67E22;
       --amber-lite:  #FAE5D3;
@@ -22,525 +52,82 @@
       --gold-mid:    #D4AC0D;
       --gold-lite:   #FCF3CF;
       --gold-bg:     #FEFDE7;
-      --teal:        #0E6655;
-      --teal-mid:    #17A589;
-      --teal-lite:   #D1F2EB;
-      --teal-bg:     #E8F8F5;
       --white:       #FFFFFF;
       --gray-1:      #F4F6F7;
       --gray-2:      #D5D8DC;
       --text-dark:   #1A2530;
       --text-mid:    #3D566E;
+      --shadow:      0 2px 12px rgba(14,102,85,0.10);
+      --header-bg:   linear-gradient(135deg, #0E6655 0%, #1B4F72 50%, #0D2B3E 100%);
+      --header-small-bg: linear-gradient(135deg, #0D2B3E 0%, #0E6655 50%, #17A589 100%);
+      --header-bar-bg: linear-gradient(90deg, #17A589 0%, #76D7C4 35%, var(--gold-mid) 65%, #2471A3 100%);
+      --header-hl:   #76D7C4;
     }
-
-    body {
-      font-family: 'Lato', sans-serif;
-      color: var(--text-dark);
-      background: #c8d8e4;
-      font-size: 10.5pt;
-      line-height: 1.6;
-    }
-
-    .page {
-      width: 210mm;
-      min-height: 297mm;
-      background: #fff;
-      margin: 12mm auto;
-      box-shadow: 0 4px 32px rgba(13,43,62,0.18);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      position: relative;
-    }
-
-    /* ─── HEADER ─────────────────────────────────────── */
-    .header {
-      background: linear-gradient(135deg, var(--teal) 0%, var(--petrol) 50%, var(--petrol-dark) 100%);
-      padding: 0;
-      position: relative;
-      overflow: hidden;
-    }
-    .header::before {
-      content: '';
-      position: absolute;
-      top: -40px; right: -40px;
-      width: 220px; height: 220px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.04);
-    }
-    .header::after {
-      content: '';
-      position: absolute;
-      bottom: -60px; left: 30%;
-      width: 160px; height: 160px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.03);
-    }
-    .header-inner {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 18px 28px 14px;
-    }
-    .header-logo img {
-      height: 72px;
-      filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
-    }
-    .header-center {
-      text-align: center;
-      flex: 1;
-      padding: 0 20px;
-    }
-    .header-tag {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 7pt;
-      font-weight: 600;
-      letter-spacing: 3px;
-      color: rgba(255,255,255,0.55);
-      text-transform: uppercase;
-      margin-bottom: 4px;
-    }
-    .header-title {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 22pt;
-      font-weight: 800;
-      color: white;
-      line-height: 1.1;
-      letter-spacing: -0.3px;
-    }
-    .header-title span { color: #76D7C4; }
-    .header-subtitle {
-      font-size: 8.5pt;
-      color: rgba(255,255,255,0.62);
-      margin-top: 5px;
-      font-weight: 300;
-      letter-spacing: 0.4px;
-    }
-    .header-badge {
-      text-align: right;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .badge-box {
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 8px;
-      padding: 6px 12px;
-      font-family: 'Montserrat', sans-serif;
-    }
-    .badge-box .b-label {
-      font-size: 6pt;
-      color: rgba(255,255,255,0.5);
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-    }
-    .badge-box .b-val {
-      font-size: 8pt;
-      font-weight: 700;
-      color: white;
-      margin-top: 1px;
-    }
-    .header-bar {
-      height: 4px;
-      background: linear-gradient(90deg, var(--teal-mid) 0%, #76D7C4 35%, var(--gold-mid) 65%, var(--petrol-mid) 100%);
-    }
-
-    /* ─── FDA STRIP ───────────────────────────────────── */
-    .fda-strip {
-      background: var(--teal-bg);
-      border-bottom: 1px solid var(--teal-lite);
-      padding: 8px 28px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .fda-badge {
-      background: var(--teal);
-      color: white;
-      font-family: 'Montserrat', sans-serif;
-      font-size: 7pt;
-      font-weight: 800;
-      padding: 3px 9px;
-      border-radius: 4px;
-      letter-spacing: 1px;
-      white-space: nowrap;
-    }
-    .fda-badge2 {
-      background: var(--petrol);
-      color: white;
-      font-family: 'Montserrat', sans-serif;
-      font-size: 7pt;
-      font-weight: 800;
-      padding: 3px 9px;
-      border-radius: 4px;
-      letter-spacing: 1px;
-      white-space: nowrap;
-    }
-    .fda-text {
-      font-size: 8pt;
-      color: var(--teal);
-      font-weight: 400;
-      line-height: 1.4;
-    }
-    .fda-text strong { color: var(--teal); font-weight: 700; }
-
-    /* ─── CONTENT ─────────────────────────────────────── */
-    .content {
-      padding: 22px 28px 28px;
-      flex: 1;
-    }
-
-    /* ─── INTRO STRIP ─────────────────────────────────── */
-    .intro-strip {
-      background: var(--teal-bg);
-      border-left: 5px solid var(--teal-mid);
-      border-radius: 0 8px 8px 0;
-      padding: 12px 16px;
-      margin-bottom: 22px;
-      display: flex;
-      align-items: flex-start;
-      gap: 14px;
-    }
-    .intro-icon {
-      font-size: 28px;
-      line-height: 1;
-      flex-shrink: 0;
-      margin-top: 2px;
-    }
-    .intro-text {
-      font-size: 9.5pt;
-      color: var(--text-mid);
-      line-height: 1.55;
-    }
-    .intro-text strong { color: var(--petrol-dark); }
-
-    /* ─── SECTION ─────────────────────────────────────── */
-    .section {
-      margin-bottom: 22px;
-    }
-    .section-title {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 9.5pt;
-      font-weight: 700;
-      color: var(--white);
-      background: linear-gradient(90deg, var(--teal) 0%, var(--teal-mid) 100%);
-      padding: 7px 14px;
-      border-radius: 6px;
-      letter-spacing: 0.8px;
-      text-transform: uppercase;
-      margin-bottom: 14px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .section-title .num {
-      background: rgba(255,255,255,0.2);
-      border-radius: 50%;
-      width: 20px; height: 20px;
-      display: inline-flex; align-items: center; justify-content: center;
-      font-size: 8.5pt;
-      font-weight: 800;
-      flex-shrink: 0;
-    }
-
-    /* ─── MOA TABLE ───────────────────────────────────── */
-    table.moa {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 8.5pt;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    table.moa thead tr { background: var(--teal); }
-    table.moa thead th {
-      padding: 8px 11px;
-      font-family: 'Montserrat', sans-serif;
-      font-size: 7.5pt;
-      font-weight: 600;
-      color: white;
-      text-align: left;
-      letter-spacing: 0.5px;
-    }
-    table.moa tbody tr:nth-child(odd)  { background: var(--white); }
-    table.moa tbody tr:nth-child(even) { background: var(--gray-1); }
-    table.moa tbody tr:hover           { background: var(--teal-lite); }
-    table.moa tbody td {
-      padding: 7px 11px;
-      color: var(--text-dark);
-      border-bottom: 1px solid var(--gray-2);
-      vertical-align: top;
-      line-height: 1.5;
-    }
-    table.moa tbody td:first-child {
-      font-weight: 700;
-      color: var(--teal);
-      white-space: nowrap;
-      font-size: 8pt;
-    }
-    table.moa tbody td:last-child {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 7.5pt;
-      font-weight: 700;
-      color: var(--petrol-mid);
-      text-align: center;
-      white-space: nowrap;
-    }
-
-    /* ─── DISS BOX ────────────────────────────────────── */
-    .diss-box {
-      background: var(--gray-1);
-      border-radius: 8px;
-      border: 1px solid var(--gray-2);
-      padding: 16px;
-    }
-    .diss-steps {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-bottom: 16px;
-    }
-    .diss-step {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-    }
-    .step-circle {
-      width: 28px; height: 28px;
-      border-radius: 50%;
-      background: var(--teal);
-      color: white;
-      font-family: 'Montserrat', sans-serif;
-      font-size: 9pt;
-      font-weight: 800;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      box-shadow: 0 2px 6px rgba(14,102,85,0.35);
-    }
-    .step-text {
-      font-size: 9pt;
-      color: var(--text-mid);
-      line-height: 1.5;
-      padding-top: 4px;
-    }
-    .step-text strong {
-      color: var(--petrol-dark);
-      font-weight: 700;
-    }
-
-    /* ─── DOSE TABLE ──────────────────────────────────── */
-    .dose-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 8.5pt;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    .dose-table thead tr { background: var(--teal); }
-    .dose-table thead th {
-      padding: 7px 11px;
-      font-family: 'Montserrat', sans-serif;
-      font-size: 7.5pt;
-      font-weight: 700;
-      color: white;
-      text-align: left;
-      letter-spacing: 0.5px;
-    }
-    .dose-table tbody tr:nth-child(odd)  { background: var(--white); }
-    .dose-table tbody tr:nth-child(even) { background: var(--teal-bg); }
-    .dose-table tbody tr:hover           { background: var(--teal-lite); }
-    .dose-table tbody td {
-      padding: 7px 11px;
-      color: var(--text-dark);
-      border-bottom: 1px solid var(--gray-2);
-    }
-    .dose-table tbody td:first-child { font-weight: 600; color: var(--teal); }
-
-    /* ─── PROTO GRID ──────────────────────────────────── */
-    .proto-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 12px;
-    }
-    .proto-card {
-      border-radius: 10px;
-      overflow: hidden;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.09);
-    }
-    .proto-head {
-      padding: 12px 14px;
-      color: white;
-    }
-    .proto-head.p1 { background: linear-gradient(135deg, var(--teal), var(--teal-mid)); }
-    .proto-head.p2 { background: linear-gradient(135deg, var(--petrol-dark), var(--petrol-mid)); }
-    .proto-head.p3 { background: linear-gradient(135deg, #4A235A, #6C3483); }
+    body { background: #c8d8e4; }
+    /* MOMM-specific: proto-head uses ph-num/ph-title class names */
     .proto-head .ph-num {
       font-family: 'Montserrat', sans-serif;
-      font-size: 7pt;
-      font-weight: 700;
-      letter-spacing: 2px;
-      opacity: 0.65;
-      text-transform: uppercase;
-      margin-bottom: 4px;
+      font-size: 7pt; font-weight: 700; letter-spacing: 2px;
+      opacity: 0.65; text-transform: uppercase; margin-bottom: 4px;
     }
     .proto-head .ph-title {
       font-family: 'Montserrat', sans-serif;
-      font-size: 9.5pt;
-      font-weight: 800;
-      line-height: 1.25;
+      font-size: 9.5pt; font-weight: 800; line-height: 1.25;
     }
-    .proto-body {
-      background: var(--gray-1);
-      padding: 12px 14px;
+    /* proto-head teal/petrol/purple colors for MOMM */
+    .proto-head.p1 { background: linear-gradient(135deg, #0E6655, #17A589); }
+    .proto-head.p2 { background: linear-gradient(135deg, #0D2B3E, #2471A3); }
+    .proto-head.p3 { background: linear-gradient(135deg, #4A235A, #6C3483); }
+    /* Override diss-steps to be vertical for MOMM */
+    .diss-box-vertical .diss-steps {
+      display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;
     }
-    .proto-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      padding: 4px 0;
-      border-bottom: 1px solid var(--gray-2);
-      gap: 8px;
+    .diss-box-vertical .diss-step {
+      display: flex; align-items: flex-start; gap: 12px;
+      text-align: left;
     }
-    .proto-row:last-child { border-bottom: none; }
-    .pr-label {
-      font-size: 7.5pt;
-      color: var(--text-mid);
-      font-weight: 400;
+    .diss-box-vertical .diss-step .step-circle {
+      width: 28px; height: 28px; font-size: 9pt;
       flex-shrink: 0;
     }
-    .pr-val {
-      font-size: 7.5pt;
-      color: var(--petrol-dark);
-      font-weight: 700;
-      text-align: right;
+    .diss-box-vertical .diss-step .step-text {
+      font-size: 9pt; color: var(--text-mid); line-height: 1.5; padding-top: 4px;
     }
-
-    /* ─── TWO COL ─────────────────────────────────────── */
-    .two-col {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
+    /* ref-box teal variant */
+    .ref-box-teal { background: var(--petrol-bg); border: 1px solid var(--petrol-lite); border-radius: 8px; padding: 14px; }
+    .ref-box-teal .ref-title {
+      font-family: 'Montserrat', sans-serif; font-size: 8.5pt; font-weight: 700;
+      color: var(--petrol); text-transform: uppercase; letter-spacing: 0.8px;
+      margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
     }
-
-    /* ─── ADV BOX ─────────────────────────────────────── */
-    .adv-box {
-      background: #FEF9E7;
-      border: 1px solid #F9E79F;
-      border-radius: 8px;
-      padding: 14px;
+    .ref-box-teal .ref-list li::before { content: '▸ '; color: var(--petrol-mid); font-size: 7pt; }
+    /* adv-box teal variant */
+    .adv-box-teal { background: #FEF9E7; border: 1px solid #F9E79F; border-radius: 8px; padding: 14px; }
+    .adv-box-teal .adv-title {
+      font-family: 'Montserrat', sans-serif; font-size: 8.5pt; font-weight: 700;
+      color: var(--amber); text-transform: uppercase; letter-spacing: 0.8px;
+      margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
     }
-    .adv-box .adv-title {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 8.5pt;
-      font-weight: 700;
-      color: var(--amber);
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .adv-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-    .adv-item:last-child { margin-bottom: 0; }
-    .adv-icon {
-      font-size: 13px;
-      flex-shrink: 0;
-      margin-top: 2px;
-    }
-    .adv-text {
-      font-size: 8.5pt;
-      color: var(--text-mid);
-      line-height: 1.45;
-    }
-    .adv-text strong { color: var(--amber); }
-
-    /* ─── REF BOX ─────────────────────────────────────── */
-    .ref-box {
-      background: var(--teal-bg);
-      border: 1px solid var(--teal-lite);
-      border-radius: 8px;
-      padding: 14px;
-    }
-    .ref-box .ref-title {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 8.5pt;
-      font-weight: 700;
-      color: var(--teal);
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .ref-list {
-      list-style: none;
-      padding: 0;
-    }
-    .ref-list li {
-      font-size: 7.5pt;
-      color: var(--text-mid);
-      padding: 3px 0;
-      border-bottom: 1px solid var(--teal-lite);
-      line-height: 1.45;
-    }
-    .ref-list li:last-child { border-bottom: none; }
-    .ref-list li::before {
-      content: '▸ ';
-      color: var(--teal-mid);
-      font-size: 7pt;
-    }
-
-    /* ─── FOOTER ──────────────────────────────────────── */
-    .footer {
-      background: var(--petrol-dark);
-      padding: 10px 28px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .footer-left {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 7pt;
-      color: rgba(255,255,255,0.45);
-      letter-spacing: 0.5px;
-    }
-    .footer-center {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 7pt;
-      color: rgba(255,255,255,0.3);
-      text-align: center;
-    }
-    .footer-right {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 7pt;
-      color: rgba(255,255,255,0.45);
-      letter-spacing: 0.5px;
-      text-align: right;
-    }
+    .adv-box-teal .adv-text strong { color: var(--amber); }
   </style>
 </head>
 <body>
+
+<!-- ═══ PÁGINA 1 ═══ -->
 <div class="page">
 
   <!-- HEADER -->
   <div class="header">
     <div class="header-inner">
       <div class="header-logo">
-        <img src="../logo_pharmafit.png" alt="PharmaFit-PY" onerror="this.style.display='none'" />
+        <img src="../assets/img/logo_pharmafit.png" alt="PharmaFit-PY" />
       </div>
       <div class="header-center">
         <div class="header-tag">Terapia IV · Otimização Metabólica e Imune · Micronutrientes Essenciais</div>
-        <div class="header-title"><span>MOMM</span> IV Cocktail</div>
+        <div class="header-title"><span class="hl">MOMM</span> IV Cocktail</div>
         <div class="header-subtitle">Megadose IV de Vitaminas, Minerais e Aminoácidos · Energia · Imunidade · Recuperação</div>
       </div>
-      <div class="header-badge">
+      <div class="header-badges">
         <div class="badge-box">
           <div class="b-label">Volume</div>
           <div class="b-val">100ml bag</div>
@@ -558,29 +145,28 @@
     <div class="header-bar"></div>
   </div>
 
-  <!-- FDA STRIP -->
-  <div class="fda-strip">
-    <span class="fda-badge">IV THERAPY</span>
-    <span class="fda-badge2">Uso Médico</span>
-    <span class="fda-text">
-      <strong>MOMM IV Cocktail</strong> — Formulação composta de micronutrientes essenciais · Vitamina C Megadose · Complexo B · Magnésio · Glutationa · Administração IV exclusivamente sob supervisão médica/enfermagem
-    </span>
+  <div class="info-strip">
+    <span class="info-chip">IV THERAPY</span>
+    <span class="info-chip dark">Uso Médico</span>
+    <span class="info-text"><strong>MOMM IV Cocktail</strong> — Formulação composta de micronutrientes essenciais · Vitamina C Megadose · Complexo B · Magnésio · Glutationa · Administração IV exclusivamente sob supervisão médica/enfermagem</span>
   </div>
 
   <!-- CONTENT -->
   <div class="content">
 
-    <!-- INTRO -->
-    <div class="intro-strip">
-      <div class="intro-icon">💉</div>
-      <div class="intro-text">
-        <strong>MOMM</strong> é um cocktail IV de alta concentração desenvolvido para otimização metabólica rápida e profunda. A formulação combina megadoses de vitamina C (antioxidante e imunoestimulante), complexo B completo (cofatores metabólicos), magnésio (relaxamento muscular e neuro), zinco e glutationa (detox celular e antioxidação). A administração IV garante <strong>biodisponibilidade de 100%</strong> — impossível de alcançar por via oral — com efeitos perceptíveis em 30–60 minutos após a infusão.
+    <div class="section">
+      <div class="section-title"><span class="st-icon">💉</span><h2>O Que É o MOMM IV Cocktail?</h2><div class="st-line"></div></div>
+      <div class="intro-strip">
+        <div class="intro-icon">💉</div>
+        <div class="intro-text">
+          <strong>MOMM</strong> é um cocktail IV de alta concentração desenvolvido para otimização metabólica rápida e profunda. A formulação combina megadoses de vitamina C (antioxidante e imunoestimulante), complexo B completo (cofatores metabólicos), magnésio (relaxamento muscular e neuro), zinco e glutationa (detox celular e antioxidação). A administração IV garante <strong>biodisponibilidade de 100%</strong> — impossível de alcançar por via oral — com efeitos perceptíveis em 30–60 minutos após a infusão.
+        </div>
       </div>
     </div>
 
     <!-- SECTION 1: MECANISMO DE AÇÃO -->
     <div class="section">
-      <div class="section-title"><span class="num">1</span> Mecanismo de Ação</div>
+      <div class="section-title"><span class="st-icon">⚡</span><h2>Mecanismo de Ação</h2><div class="st-line"></div></div>
       <table class="moa">
         <thead>
           <tr>
@@ -626,8 +212,8 @@
 
     <!-- SECTION 2: ADMINISTRAÇÃO -->
     <div class="section">
-      <div class="section-title"><span class="num">2</span> Preparo e Administração</div>
-      <div class="diss-box">
+      <div class="section-title"><span class="st-icon">📋</span><h2>Preparo e Administração</h2><div class="st-line"></div></div>
+      <div class="diss-box diss-box-vertical">
         <div class="diss-steps">
           <div class="diss-step">
             <div class="step-circle">1</div>
@@ -691,7 +277,7 @@
 
     <!-- SECTION 3: PROTOCOLOS -->
     <div class="section">
-      <div class="section-title"><span class="num">3</span> Protocolos Clínicos</div>
+      <div class="section-title"><span class="st-icon">🗂️</span><h2>Protocolos Clínicos</h2><div class="st-line"></div></div>
       <div class="proto-grid">
         <div class="proto-card">
           <div class="proto-head p1">
@@ -768,9 +354,9 @@
       </div>
     </div>
 
-    <!-- TWO COL: PRECAUÇÕES + REFERÊNCIAS -->
+    <!-- TWO COL: PRECAUÇÕES + COMPOSIÇÃO -->
     <div class="two-col">
-      <div class="adv-box">
+      <div class="adv-box-teal">
         <div class="adv-title">⚠️ Precauções e Contraindicações</div>
         <div class="adv-item">
           <span class="adv-icon">🏥</span>
@@ -793,7 +379,7 @@
           <span class="adv-text"><strong>Contraindicado</strong> em insuficiência cardíaca congestiva descompensada (sobrecarga hídrica)</span>
         </div>
       </div>
-      <div class="ref-box">
+      <div class="ref-box-teal">
         <div class="ref-title">📋 Composição e Dados Técnicos</div>
         <ul class="ref-list">
           <li>Vitamina C: 10–25g IV por sessão</li>
@@ -812,13 +398,65 @@
 
   </div><!-- /content -->
 
-  <!-- FOOTER -->
+  <!-- FOOTER PAGE 1 -->
   <div class="footer">
-    <div class="footer-left">PharmaFit-PY · Laboratorio Farmacéutico</div>
-    <div class="footer-center">Documento técnico informativo · Administração exclusivamente por profissional habilitado · Prescrição médica obrigatória</div>
-    <div class="footer-right">MOMM-100-PFY · Rev. 2026</div>
+    <div class="footer-brand"><span>PHARMAFIT-PY</span> · Laboratorio Farmacéutico</div>
+    <div class="footer-code">MOMM-100-PFY · Rev. 2026</div>
+    <div class="footer-page">1 / 2</div>
   </div>
+  <div class="footer-note">Documento informativo — não substitui prescrição médica · © 2026 Pharmafit-PY · Todos os direitos reservados</div>
 
 </div>
+
+<!-- ═══ PÁGINA 2 ═══ -->
+<div class="page">
+  <div class="header-small">
+    <img src="../assets/img/logo_pharmafit.png" alt="PharmaFit-PY" />
+    <div>
+      <div class="hs-title"><span>MOMM</span> IV Cocktail · Referências</div>
+      <div class="hs-sub">Megadose IV · Vitaminas, Minerais e Aminoácidos</div>
+    </div>
+    <div class="hs-right">
+      <div class="hs-title" style="font-size:9pt;color:rgba(255,255,255,0.5);">PHARMAFIT-PY</div>
+      <div class="hs-sub">Laboratorio Farmacéutico</div>
+    </div>
+  </div>
+  <div class="header-bar"></div>
+
+  <div class="content">
+
+    <div class="pharmafit-banner">
+      <img src="../assets/img/logo_pharmafit.png" alt="PharmaFit-PY" class="pf-logo" />
+      <div class="pf-text">
+        <div class="pf-label">Estudo Clínico Elaborado por</div>
+        <div class="pf-brand">Pharmafit<span>-PY</span></div>
+        <div class="pf-tagline">Compostos injetáveis de alta pureza com qualidade farmacêutica.<br>Protocolos personalizados para saúde, performance e bem-estar.</div>
+      </div>
+      <a class="pf-cta" href="tel:+12142049853">📞 +1 (214) 204-9853</a>
+    </div>
+
+    <div class="box-card ref" style="margin-top: 16px;">
+      <div class="box-title">📚 Referências Científicas</div>
+      <ul class="ref-list">
+        <li data-n="1">Padayatty SJ et al. (2004). <em>Vitamin C pharmacokinetics: implications for oral and intravenous use.</em> Ann Intern Med. 140(7):533–537.</li>
+        <li data-n="2">Carr AC &amp; Maggini S. (2017). <em>Vitamin C and immune function.</em> Nutrients. 9(11):1211.</li>
+        <li data-n="3">Volpe SL. (2013). <em>Magnesium in disease prevention and overall health.</em> Adv Nutr. 4(3):378S–383S.</li>
+        <li data-n="4">Pizzorno J. (2014). <em>Glutathione!</em> Integr Med (Encinitas). 13(1):8–12.</li>
+        <li data-n="5">Prasad AS. (2008). <em>Zinc in human health: effect of zinc on immune cells.</em> Mol Med. 14(5–6):353–357.</li>
+        <li data-n="6">Kennedy DO. (2016). <em>B vitamins and the brain: mechanisms, dose and efficacy.</em> Nutrients. 8(2):68.</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-brand"><span>PHARMAFIT-PY</span> · Laboratorio Farmacéutico</div>
+    <div class="footer-code">MOMM-100-PFY · Rev. 2026 · Uso Profissional</div>
+    <div class="footer-page">2 / 2</div>
+  </div>
+  <div class="footer-note">Documento informativo — não substitui prescrição médica · © 2026 Pharmafit-PY · Todos os direitos reservados</div>
+
+</div>
+
 </body>
 </html>
