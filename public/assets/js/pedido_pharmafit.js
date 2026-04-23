@@ -1692,3 +1692,12 @@ function lpPreencherCampos(data) {
   set('f_estado',      data.estado);
   set('f_rua',         data.endereco);
 }
+
+
+function fecharAvisoPrazo() {
+  const el = document.getElementById('aviso-prazo');
+  if (!el) return;
+  el.classList.add('hide');
+  setTimeout(() => el.remove(), 350);
+}
+setTimeout(fecharAvisoPrazo, 8000);
