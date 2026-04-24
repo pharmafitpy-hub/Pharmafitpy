@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>PharmaFit B2C — Painel Admin</title>
+<meta name="theme-color" content="#f59e0b"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="B2C Admin"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="../icons/icon-192.svg"/>
+<link rel="stylesheet" href="assets/css/painel.css"/>
+</head>
+<body>
+
+<!-- LOADING OVERLAY -->
+<div id="loading-overlay" class="hidden" style="
+  position:fixed;inset:0;background:rgba(11,22,34,.85);
+  display:flex;align-items:center;justify-content:center;z-index:9999;
+">
+  <div style="text-align:center;color:#f59e0b">
+    <div style="font-size:32px;margin-bottom:12px">🎟️</div>
+    <div style="font-size:14px;opacity:.7">Carregando...</div>
+  </div>
+</div>
+
+<!-- PWA INSTALL BANNER -->
+<div id="install-banner" class="install-banner hidden">
+  <button class="install-banner-close" onclick="document.getElementById('install-banner').classList.add('hidden')">✕</button>
+  <div class="install-banner-icon">🎟️</div>
+  <div class="install-banner-title">Instalar Painel B2C</div>
+  <div class="install-banner-text">Adicione o painel à tela inicial para acesso rápido sem abrir o navegador.</div>
+  <button class="btn-sm btn-accent install-banner-btn" onclick="installPwa()">Instalar app</button>
+  <button class="btn-sm" onclick="document.getElementById('install-banner').classList.add('hidden')">Agora não</button>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="admin-layout">
+
+  <!-- HEADER -->
+  <header class="admin-header">
+    <div class="header-logo">PharmaFit <span>B2C</span></div>
+
+    <nav class="admin-nav">
+      <button class="nav-btn" data-view="vendedoras">👩‍💼 Vendedoras</button>
+      <button class="nav-btn" data-view="cupons">🎟️ Cupons</button>
+      <button class="nav-btn" data-view="admins">🔐 Admins</button>
+    </nav>
+
+    <div class="header-right">
+      <span class="admin-nome" id="admin-nome"></span>
+      <button class="btn-logout" onclick="logout()">Sair</button>
+    </div>
+
+    <!-- Mobile nav strip -->
+    <div class="mobile-header-row">
+      <nav class="admin-nav-mobile"></nav>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="admin-main">
+
+    <!-- VIEW: VENDEDORAS -->
+    <section id="view-vendedoras" class="view hidden">
+      <div class="view-bar">
+        <h2>👩‍💼 Vendedoras</h2>
+        <div class="view-bar-right">
+          <button class="btn-sm" onclick="reloadView()">↺ Atualizar</button>
+        </div>
+      </div>
+
+      <div class="stats-bar" id="vend-stats"></div>
+
+      <div class="search-bar-wrapper">
+        <input type="search" id="vend-search" placeholder="Buscar por nome ou e-mail…"/>
+      </div>
+
+      <div class="admin-grid vend-grid" id="vend-grid">
+        <p class="loading-msg">Carregando vendedoras…</p>
+      </div>
+    </section>
+
+    <!-- VIEW: CUPONS -->
+    <section id="view-cupons" class="view hidden">
+      <div class="view-bar">
+        <h2>🎟️ Cupons</h2>
+        <div class="view-bar-right">
+          <button class="btn-sm btn-accent" onclick="abrirCriarCupom()">＋ Novo Cupom</button>
+          <button class="btn-sm" onclick="reloadView()">↺ Atualizar</button>
+        </div>
+      </div>
+
+      <div class="stats-bar" id="cupom-stats"></div>
+
+      <div class="search-bar-wrapper">
+        <input type="search" id="cupom-search" placeholder="Buscar por código ou vendedora…"/>
+      </div>
+
+      <div class="admin-grid cupom-grid" id="cupom-grid">
+        <p class="loading-msg">Carregando cupons…</p>
+      </div>
+    </section>
+
+    <!-- VIEW: ADMINS -->
+    <section id="view-admins" class="view hidden">
+      <div class="view-bar">
+        <h2>🔐 Administradores</h2>
+        <div class="view-bar-right">
+          <button class="btn-sm" onclick="reloadView()">↺ Atualizar</button>
+        </div>
+      </div>
+
+      <div class="admin-grid vend-grid" id="admins-grid">
+        <p class="loading-msg">Carregando admins…</p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- MODAL OVERLAY -->
+<div id="modal-overlay" class="modal-overlay"></div>
+
+<!-- MODAL: CRIAR CUPOM -->
+<div id="modal-cupom" class="modal-box">
+  <div class="modal-header">
+    <span>🎟️ Novo Cupom</span>
+    <button onclick="closeModal('modal-cupom')">✕</button>
+  </div>
+
+  <form id="novo-cupom-form" onsubmit="e=>e.preventDefault()">
+    <div style="display:grid;gap:14px">
+
+      <div>
+        <label style="display:block;font-size:11px;color:var(--text);opacity:.5;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">
+          Código do Cupom *
+        </label>
+        <input id="nc-codigo" type="text" placeholder="EX: PROMO10"
+          style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:var(--text);outline:none;font-size:14px;text-transform:uppercase"
+          oninput="this.value=this.value.toUpperCase()"/>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <label style="display:block;font-size:11px;color:var(--text);opacity:.5;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">
+            Tipo *
+          </label>
+          <select id="nc-tipo"
+            style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:var(--text);outline:none;font-size:13px">
+            <option value="percentual">% Percentual</option>
+            <option value="fixo">R$ Valor fixo</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;color:var(--text);opacity:.5;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">
+            Valor *
+          </label>
+          <input id="nc-valor" type="number" min="0" step="0.01" placeholder="10"
+            style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:var(--text);outline:none;font-size:13px"/>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <label style="display:block;font-size:11px;color:var(--text);opacity:.5;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">
+            Válido até
+          </label>
+          <input id="nc-validade" type="date"
+            style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:var(--text);outline:none;font-size:13px"/>
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;color:var(--text);opacity:.5;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">
+            Vendedora (opcional)
+          </label>
+          <input id="nc-vendedora" type="text" placeholder="Nome da vendedora"
+            style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:var(--text);outline:none;font-size:13px"/>
+        </div>
+      </div>
+
+      <button type="button" class="btn-sm btn-accent" onclick="criarCupom()"
+        style="width:100%;padding:11px;font-size:14px">
+        Criar Cupom
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script src="../assets/js/config.js"></script>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/painel.js"></script>
+</body>
+</html>

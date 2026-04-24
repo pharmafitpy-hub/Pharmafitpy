@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>PharmaFit B2C — Acesso Admin</title>
+<meta name="theme-color" content="#f59e0b"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="../icons/icon-192.svg"/>
+<link rel="stylesheet" href="assets/css/painel.css"/>
+</head>
+<body class="login-page">
+
+<div class="login-card">
+  <div class="login-logo">🎟️</div>
+  <h1 class="login-title">PharmaFit B2C</h1>
+  <p class="login-sub">Gestão de Vendedoras e Cupons</p>
+
+  <form id="login-form" autocomplete="on">
+    <div class="field">
+      <label>E-mail</label>
+      <input type="email" id="email" placeholder="seu@email.com" autocomplete="email" required/>
+    </div>
+    <div class="field">
+      <label>Senha</label>
+      <input type="password" id="senha" placeholder="••••••••" autocomplete="current-password" required/>
+    </div>
+    <div class="login-error hidden" id="login-error"></div>
+    <button type="submit" class="btn-login" id="btn-login">Entrar</button>
+  </form>
+
+  <details style="margin-top:20px">
+    <summary style="font-size:.78rem;color:var(--text2);cursor:pointer">Cadastrar novo admin</summary>
+    <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px">
+      <input type="text"     id="c-nome"  class="field input" placeholder="Nome completo"/>
+      <input type="email"    id="c-email" class="field input" placeholder="E-mail"/>
+      <input type="password" id="c-senha" class="field input" placeholder="Senha (mín. 6 chars)"/>
+      <input type="text"     id="c-cargo" class="field input" placeholder="Cargo (opcional)"/>
+      <input type="password" id="c-pin"   class="field input" placeholder="PIN de cadastro"/>
+      <div class="login-error hidden" id="cad-error"></div>
+      <button onclick="cadastrar()" class="btn-login" style="background:var(--surface2);color:var(--accent)">
+        Cadastrar
+      </button>
+    </div>
+  </details>
+
+  <p class="login-footer">Acesso restrito — equipe interna</p>
+</div>
+
+<script src="../assets/js/config.js"></script>
+<script>
+  if (localStorage.getItem('pharmafit_b2c_admin')) window.location.href = 'painel.html';
+
+  document.getElementById('login-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('btn-login');
+    const err = document.getElementById('login-error');
+    btn.disabled = true; btn.textContent = 'Entrando...';
+    err.classList.add('hidden');
+    try {
+      const email = document.getElementById('email').value.trim().toLowerCase();
+      const senha = document.getElementById('senha').value.trim();
+      const url   = new URL(SHEETS_URL);
+      url.searchParams.set('action', 'login_admin');
+      url.searchParams.set('email', email);
+      url.searchParams.set('senha', senha);
+      const data = await fetch(url).then(r => r.json());
+      if (data.ok) {
+        localStorage.setItem('pharmafit_b2c_admin', JSON.stringify({
+          email: data.email, token: data.token, nome: data.nome, cargo: data.cargo,
+        }));
+        window.location.href = 'painel.html';
+      } else {
+        err.textContent = data.erro || 'Credenciais inválidas';
+        err.classList.remove('hidden');
+      }
+    } catch(_) {
+      err.textContent = 'Erro de conexão.';
+      err.classList.remove('hidden');
+    } finally { btn.disabled = false; btn.textContent = 'Entrar'; }
+  });
+
+  async function cadastrar() {
+    const err   = document.getElementById('cad-error');
+    err.classList.add('hidden');
+    const url   = new URL(SHEETS_URL);
+    url.searchParams.set('action', 'cadastrar_admin');
+    url.searchParams.set('nome',  document.getElementById('c-nome').value.trim());
+    url.searchParams.set('email', document.getElementById('c-email').value.trim().toLowerCase());
+    url.searchParams.set('senha', document.getElementById('c-senha').value.trim());
+    url.searchParams.set('cargo', document.getElementById('c-cargo').value.trim());
+    url.searchParams.set('pin',   document.getElementById('c-pin').value.trim());
+    try {
+      const data = await fetch(url).then(r => r.json());
+      if (data.ok) { alert('Admin cadastrado! Faça login.'); }
+      else { err.textContent = data.erro || 'Erro'; err.classList.remove('hidden'); }
+    } catch(_) { err.textContent = 'Erro de conexão.'; err.classList.remove('hidden'); }
+  }
+
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+</script>
+</body>
+</html>
