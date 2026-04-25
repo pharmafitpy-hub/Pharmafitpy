@@ -1,4 +1,4 @@
-const CACHE = 'pharmafit-b2c-admin-v1';
+const CACHE = 'pharmafit-b2c-admin-v2';
 
 self.addEventListener('install', e => { self.skipWaiting(); });
 
