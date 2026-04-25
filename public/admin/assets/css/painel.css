@@ -7,10 +7,10 @@
   --card:     #112032;
   --card2:    #162840;
   --border:   #1e3a52;
-  --accent:   #f59e0b;
-  --accent2:  #d97706;
-  --text:     #fef3c7;
-  --text2:    #b45309;
+  --accent:   #f43f5e;
+  --accent2:  #e11d48;
+  --text:     #e2e8f0;
+  --text2:    #94a3b8;
   --danger:   #e74c3c;
   --warning:  #f39c12;
   --radius:   10px;
@@ -105,7 +105,7 @@ button { cursor: pointer; }
   position: relative;
 }
 .nav-btn:hover { background: var(--bg2); color: var(--text); }
-.nav-btn.active { background: rgba(245,158,11,.15); color: var(--accent); }
+.nav-btn.active { background: rgba(244,63,94,.15); color: var(--accent); }
 
 .header-right { display: flex; align-items: center; gap: 12px; margin-left: auto; }
 .admin-nome { font-size: 13px; color: var(--text2); white-space: nowrap; }
@@ -209,7 +209,7 @@ button { cursor: pointer; }
   transition: all .15s; text-align: center;
 }
 .card-btn:hover { border-color: var(--accent); color: var(--accent); }
-.card-btn-advance { background: rgba(245,158,11,.1); border-color: rgba(245,158,11,.3); color: var(--accent); }
+.card-btn-advance { background: rgba(244,63,94,.1); border-color: rgba(244,63,94,.3); color: var(--accent); }
 .card-btn-advance:hover { background: var(--accent); color: #0b1622; }
 
 /* ── ORDER DRAWER ─────────────────────────────────────────────────────────── */
@@ -346,7 +346,7 @@ button { cursor: pointer; }
 /* Clientes */
 .cli-avatar {
   width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
-  background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.25);
+  background: rgba(244,63,94,.12); border: 1px solid rgba(244,63,94,.25);
   display: flex; align-items: center; justify-content: center;
   font-size: 14px; font-weight: 700; color: var(--accent);
 }
@@ -435,7 +435,7 @@ button { cursor: pointer; }
 .badge {
   padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600;
 }
-.badge-on  { background: rgba(245,158,11,.15); color: var(--accent); }
+.badge-on  { background: rgba(244,63,94,.15); color: var(--accent); }
 .badge-off { background: rgba(231,76,60,.1); color: #fc8181; }
 
 /* ── KANBAN TOOLBAR ───────────────────────────────────────────────────────── */
@@ -450,7 +450,7 @@ button { cursor: pointer; }
   padding: 5px 11px; border-radius: 6px; font-size: 12px; transition: all .15s;
 }
 .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
-.filter-btn.active { background: rgba(245,158,11,.15); border-color: var(--accent); color: var(--accent); }
+.filter-btn.active { background: rgba(244,63,94,.15); border-color: var(--accent); color: var(--accent); }
 .kanban-filters select {
   background: var(--card2); border: 1px solid var(--border); color: var(--text2);
   padding: 5px 9px; border-radius: 6px; font-size: 12px; outline: none; cursor: pointer;
@@ -657,7 +657,7 @@ button { cursor: pointer; }
 .kanban-card[draggable="true"] { cursor: grab; }
 .kanban-card[draggable="true"]:active { cursor: grabbing; }
 .col-body.drag-over {
-  background: rgba(245,158,11,.06);
+  background: rgba(244,63,94,.06);
   outline: 2px dashed var(--accent);
   outline-offset: -4px;
   border-radius: 8px;
@@ -973,7 +973,7 @@ button { cursor: pointer; }
   border-radius: var(--radius); padding: 14px 16px;
 }
 .notif-card.notif-unread {
-  border-color: var(--accent); background: rgba(245,158,11,.07);
+  border-color: var(--accent); background: rgba(244,63,94,.07);
 }
 .notif-card-top {
   display: flex; justify-content: space-between; align-items: baseline;

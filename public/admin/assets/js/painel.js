@@ -2404,7 +2404,7 @@ function renderRelatorio() {
     </div>` : ''}
   `;
 
-  const chartOpts = { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#92400e' }, grid: { color: '#2a1a00' } }, y: { ticks: { color: '#92400e' }, grid: { color: '#2a1a00' } } } };
+  const chartOpts = { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8' }, grid: { color: '#1e3a52' } }, y: { ticks: { color: '#94a3b8' }, grid: { color: '#1e3a52' } } } };
   const horizOpts = { ...chartOpts, indexAxis: 'y' };
 
   // Destroy old charts
@@ -2415,7 +2415,7 @@ function renderRelatorio() {
     type: 'bar',
     data: {
       labels:   d.semanas.map(s => s.label),
-      datasets: [{ data: d.semanas.map(s => s.total), backgroundColor: '#f59e0b', borderRadius: 4 }],
+      datasets: [{ data: d.semanas.map(s => s.total), backgroundColor: '#f43f5e', borderRadius: 4 }],
     },
     options: { ...chartOpts, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => 'R$ ' + ctx.raw.toFixed(2).replace('.',',') } } } },
   });
@@ -2446,19 +2446,19 @@ function renderRelatorio() {
       labels:   stLabels,
       datasets: [{ data: stLabels.map(k => d.por_status[k]), backgroundColor: stLabels.map(k => statusCores[k] || '#6b7280'), borderWidth: 0 }],
     },
-    options: { responsive: true, plugins: { legend: { position: window.innerWidth < 768 ? 'bottom' : 'right', labels: { color: '#92400e', font: { size: window.innerWidth < 768 ? 10 : 11 } } } } },
+    options: { responsive: true, plugins: { legend: { position: window.innerWidth < 768 ? 'bottom' : 'right', labels: { color: '#94a3b8', font: { size: window.innerWidth < 768 ? 10 : 11 } } } } },
   });
 
   if (d.por_pagamento && Object.keys(d.por_pagamento).length > 0) {
     const pagLabels = Object.keys(d.por_pagamento);
-    const pagCores  = ['#1abc9c','#3b82f6','#f59e0b','#8b5cf6','#ef4444'];
+    const pagCores  = ['#f43f5e','#3b82f6','#f59e0b','#8b5cf6','#ef4444'];
     App.charts.pagamento = new Chart(document.getElementById('chart-pagamento'), {
       type: 'doughnut',
       data: {
         labels:   pagLabels,
         datasets: [{ data: pagLabels.map(k => d.por_pagamento[k]), backgroundColor: pagLabels.map((_, i) => pagCores[i % pagCores.length]), borderWidth: 0 }],
       },
-      options: { responsive: true, plugins: { legend: { position: window.innerWidth < 768 ? 'bottom' : 'right', labels: { color: '#92400e', font: { size: window.innerWidth < 768 ? 10 : 11 } } } } },
+      options: { responsive: true, plugins: { legend: { position: window.innerWidth < 768 ? 'bottom' : 'right', labels: { color: '#94a3b8', font: { size: window.innerWidth < 768 ? 10 : 11 } } } } },
     });
   }
 
@@ -2467,7 +2467,7 @@ function renderRelatorio() {
       type: 'bar',
       data: {
         labels:   d.por_vendedora.map(v => v.nome.length > 25 ? v.nome.slice(0,23)+'…' : v.nome),
-        datasets: [{ data: d.por_vendedora.map(v => v.total), backgroundColor: '#f59e0b', borderRadius: 4 }],
+        datasets: [{ data: d.por_vendedora.map(v => v.total), backgroundColor: '#f43f5e', borderRadius: 4 }],
       },
       options: { ...chartOpts, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => 'R$ ' + ctx.raw.toFixed(2).replace('.',',') } } } },
     });
