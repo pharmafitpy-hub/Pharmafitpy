@@ -468,8 +468,26 @@ function carregarPedidoNoEditor(p,cli){
     else gPendingCartText=p.produtos;
   }
   if(gCATALOG.length===0&&Object.keys(gCart).length>0){gPendingCart={...gCart};gCart={};}
-  gFreteValor=0;gFreteMetodo='';
+  // Restaura frete do pedido salvo (se houver) — pré-preenche CEP e chama calcularFrete
+  // pra reconstruir as opções e selecionar o método antes usado.
+  gFreteValor=parseFloat(p.freteValor)||0;
+  gFreteMetodo=String(p.freteMetodo||'').toLowerCase();
+  gFreteCep=String(p.cep||'').replace(/\D/g,'');
   irParaEditor();
+  if(gFreteCep){
+    const cepInput=document.getElementById('f_cep');
+    if(cepInput){
+      cepInput.value=gFreteCep.length===8?`${gFreteCep.slice(0,5)}-${gFreteCep.slice(5)}`:gFreteCep;
+      // Aguarda 1 tick pra garantir que o editor foi renderizado, e re-aplica o método
+      setTimeout(async ()=>{
+        const metodoAntes=gFreteMetodo;
+        await calcularFrete();
+        if(metodoAntes&&['sedex','pac','jadlog'].includes(metodoAntes)){
+          selecionarFrete(metodoAntes);
+        }
+      },50);
+    }
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -636,14 +654,16 @@ async function salvarPedido(){
     cupom_codigo:gCupomCodigo||'',cupom_valor:calcularDescontoCupom().toFixed(2),carrinho:JSON.stringify(gCart),
     cep:gFreteCep||'',frete_metodo:gFreteMetodo||'',frete_valor:gFreteValor>0?gFreteValor.toFixed(2):'0',
   });
-  // Corrigir: atualiza linha existente em vez de criar nova (exige token admin)
+  // Auth admin SEMPRE — backend salvar() exige cliente_token OU admin.
+  // No painel admin nunca temos cliente_token; precisamos do email+token admin.
+  if(window.App?.admin){
+    params.set('email', App.admin.email);
+    params.set('token', App.admin.token);
+  }
+  // Corrigir: atualiza linha existente em vez de criar nova
   if(gMODO==='corrigir'&&gPedidoRowId){
     params.set('action','atualizar_pedido');
     params.set('rowNum',gPedidoRowId);
-    if(window.App?.admin){
-      params.set('email', App.admin.email);
-      params.set('token', App.admin.token);
-    }
   }
   try{
     const r=await fetch(`${SHEETS_URL}?${params}`);
