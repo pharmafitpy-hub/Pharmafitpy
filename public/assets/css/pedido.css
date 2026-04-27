@@ -561,30 +561,6 @@
   .modal-header h2 { font-size: 1.1rem; }
   .modal-close { background: none; border: none; color: var(--gray); font-size: 1.4rem; cursor: pointer; }
   .modal-body { padding: 20px 24px; overflow-y: auto; flex: 1; }
-  .history-item {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px 16px;
-    margin-bottom: 12px;
-  }
-  .hi-top { display: flex; justify-content: space-between; margin-bottom: 8px; }
-  .hi-clinic { font-weight: 700; }
-  .hi-date { font-size: 0.75rem; color: var(--gray); }
-  .hi-total { font-weight: 700; color: var(--accent); font-size: 1.05rem; }
-  .hi-products { font-size: 0.78rem; color: var(--gray); }
-  .hi-method { font-size: 0.75rem; color: var(--blue); margin-top: 4px; }
-  .no-history { text-align: center; color: var(--gray); padding: 30px 0; }
-  .btn-clear-history {
-    background: var(--danger);
-    color: var(--white);
-    border: none;
-    padding: 8px 16px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.8rem;
-    font-family: inherit;
-  }
 
   /* ── FILTERS & SORT ── */
   .filter-area { margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px; }

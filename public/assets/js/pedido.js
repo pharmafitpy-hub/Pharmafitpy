@@ -1554,42 +1554,6 @@ function saveOrder(total) {
   localStorage.setItem('lp_orders', JSON.stringify(orders));
 }
 
-function openHistory() {
-  const orders = JSON.parse(localStorage.getItem('lp_orders') || '[]');
-  const body = document.getElementById('history-body');
-  if (orders.length === 0) {
-    body.innerHTML = '<div class="no-history">📭 Nenhum pedido registrado ainda.</div>';
-  } else {
-    body.innerHTML = orders.map(o => `
-      <div class="history-item">
-        <div class="hi-top">
-          <span class="hi-clinic">${esc(o.clinica)}</span>
-          <span class="hi-total">R$ ${esc(o.total)}</span>
-        </div>
-        <div class="hi-date">📅 ${esc(o.date)} · ${esc(o.responsavel)} · ${esc(o.telefone)}</div>
-        <div class="hi-products">💊 ${esc(o.products.join(' | '))}</div>
-        <div class="hi-method">💳 ${esc(o.payment)}</div>
-      </div>`).join('');
-  }
-  document.getElementById('history-modal').classList.add('open');
-}
-
-function closeHistory() {
-  document.getElementById('history-modal').classList.remove('open');
-}
-
-function clearHistory() {
-  if (confirm('Apagar todo o histórico de pedidos?')) {
-    localStorage.removeItem('lp_orders');
-    closeHistory();
-  }
-}
-
-// Fechar modal clicando fora
-document.getElementById('history-modal').addEventListener('click', function(e) {
-  if (e.target === this) closeHistory();
-});
-
 // ─── RECOMENDAÇÕES NA REVISÃO ────────────────────────────────────────────────
 function renderRecomendacoesRevisao() {
   const cartIds = Object.keys(cart).map(k => k.split('__')[0]);
