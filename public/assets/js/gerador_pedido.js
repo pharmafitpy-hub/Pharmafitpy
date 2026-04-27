@@ -492,6 +492,9 @@ async function g_salvarNovoCliente(){
   if(!nome){status.textContent='Preencha o nome.';return;}if(!tel){status.textContent='Preencha o telefone.';return;}
   const btn=document.getElementById('btn-salvar-cliente');btn.disabled=true;btn.textContent='Salvando...';status.textContent='';
   const params=new URLSearchParams({action:'cadastrar',clinica:nome,responsavel:document.getElementById('nc_responsavel').value.trim(),telefone:tel,email:document.getElementById('nc_email').value.trim(),cpf:document.getElementById('nc_cpf').value.trim(),cidade:document.getElementById('nc_cidade').value.trim(),estado:document.getElementById('nc_estado').value.trim(),endereco:document.getElementById('nc_endereco').value.trim()});
+  // Admin auth via token de sessão — backend (validateAdmin_) só precisa do token.
+  // Pula a obrigatoriedade de senha/email do fluxo customer self-service.
+  if(window.App?.admin?.token){params.set('token',App.admin.token);}
   try{
     const r=await fetch(`${SHEETS_URL}?${params}`);const data=await r.json();
     if(data.ok){fecharModal();['nc_nome','nc_responsavel','nc_telefone','nc_email','nc_cpf','nc_cidade','nc_estado','nc_endereco'].forEach(id=>document.getElementById(id).value='');
