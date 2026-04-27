@@ -51,13 +51,13 @@
  */
 
 const CLIENT = {
-  name:    'Sua Empresa',           // Nome curto, exibido em títulos e logo (fallback)
-  tagline: 'Catálogo B2B',          // Subtítulo / descrição em meta tags
+  name:    'PharmaFit-Py',           // Nome curto, exibido em títulos e logo (fallback)
+  tagline: 'Catálogo',          // Subtítulo / descrição em meta tags
   wa:      '',                      // WhatsApp do cliente — só dígitos com código país, ex: '5511999999999'
   logo:    'assets/img/logo.png',   // Caminho do logo (SVG/PNG — relativo a /public)
-  ogImage: 'assets/img/og-image.svg', // Imagem de preview em redes sociais (1200x630 ideal)
+  ogImage: 'assets/img/og-image.png', // Imagem de preview em redes sociais (1200x630 ideal)
   baseUrl: '',                      // URL base do site, ex: 'https://meu-cliente.github.io/repo' (vazio = relativo)
 };
 
 const SHEETS_URL = '%%SHEETS_URL%%';
-const WA_NUMBER  = CLIENT.wa;       // alias retrocompatível
+const WA_NUMBER  = '12142049853';       // alias retrocompatível
