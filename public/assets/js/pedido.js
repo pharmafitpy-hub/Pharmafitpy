@@ -143,7 +143,7 @@ async function carregarProdutos() {
 }
 
 // ─── FILTERS & SORT ─────────────────────────────────────────────────────────
-// As categorias abaixo são preenchidas dinamicamente a partir das tags da planilha.
+// As categorias são preenchidas dinamicamente a partir da coluna Categoria da planilha.
 // Mantemos apenas "Todos" como categoria base — as demais são geradas em renderFilters().
 const CATEGORIAS = [
   { val: 'todos', label: 'Todos' },
@@ -156,12 +156,15 @@ function renderFilters() {
     return `<button class="lab-btn ${val === activeLabFilter ? 'active' : ''}" onclick="setLabFilter('${escAttr(val)}')">${esc(l)}</button>`;
   }).join('');
 
-  // Tags dinâmicas a partir do catálogo (se nenhuma, esconde a sessão).
-  const allTags = new Set();
+  // Categorias dinâmicas a partir da coluna Categoria do catálogo.
+  // Capitaliza pra exibição (categoria_emagrecimento → "Emagrecimento") mas mantém o val em lowercase pra match.
+  const allCats = new Set();
   CATALOG.forEach(p => {
-    (Array.isArray(p.tags) ? p.tags : []).forEach(t => { if (t) allTags.add(String(t)); });
+    const c = String(p.categoria || '').trim();
+    if (c) allCats.add(c.toLowerCase());
   });
-  const dyn = [...allTags].sort().map(t => ({ val: t.toLowerCase(), label: t }));
+  const cap = (s) => s.split(/[\s_-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  const dyn = [...allCats].sort().map(c => ({ val: c, label: cap(c) }));
   const cats = [...CATEGORIAS, ...dyn];
   document.getElementById('tag-filters').innerHTML = cats.map(c =>
     `<button class="lab-btn ${c.val === activeTagFilter ? 'active' : ''}" onclick="setTagFilter('${escAttr(c.val)}')">${esc(c.label)}</button>`

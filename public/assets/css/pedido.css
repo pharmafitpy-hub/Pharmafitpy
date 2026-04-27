@@ -729,12 +729,12 @@
 
   /* ── SAIBA MAIS BTN ── */
   .btn-saiba-mais {
-    background: transparent; border: 1px solid var(--accent); color: var(--accent);
-    border-radius: 6px; padding: 5px 10px; font-size: .75rem; cursor: pointer;
-    width: 100%; margin-top: 8px; font-family: inherit; transition: all .2s;
+    background: #7C3AED; border: none; color: #FFFFFF;
+    border-radius: 6px; padding: 6px 10px; font-size: .75rem; cursor: pointer;
+    width: 100%; margin-top: 8px; font-family: inherit; transition: background .2s;
     font-weight: 600;
   }
-  .btn-saiba-mais:hover { background: var(--accent); color: #fff; }
+  .btn-saiba-mais:hover { background: #6D28D9; }
 
   /* ── PROTOCOL MODAL ── */
   .proto-modal-body { padding: 20px 24px; overflow-y: auto; max-height: 70vh; }
