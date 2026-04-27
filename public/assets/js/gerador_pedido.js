@@ -252,6 +252,7 @@ async function calcularFrete(){
     if(subtotal>=3000){
       gFreteValor=0;gFreteMetodo='gratis';
       opcoes.style.display='none';
+      gratisEl.innerHTML='🎉 <strong>Frete GRÁTIS!</strong> Pedidos acima de R$ 3.000,00 têm entrega gratuita.';
       gratisEl.style.display='block';
       status.textContent='';
     } else {

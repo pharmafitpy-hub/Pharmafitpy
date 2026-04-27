@@ -83,8 +83,10 @@
   #view-gerador .ped-btn.loaded{background:rgba(245,158,11,.15);border-color:var(--green);color:var(--green)}
   #view-gerador .loading-box{text-align:center;padding:40px;color:var(--gray);font-size:.85rem}
 
-  #view-gerador .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;align-items:center;justify-content:center}
-  #view-gerador .modal-overlay.ativo{display:flex}
+  /* Reset do .modal-overlay base do admin.css (opacity:0;pointer-events:none) — */
+  /* aqui usamos display+opacity juntos pra garantir visibilidade quando ativo. */
+  #view-gerador .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;align-items:center;justify-content:center;opacity:1;pointer-events:none}
+  #view-gerador .modal-overlay.ativo{display:flex;opacity:1;pointer-events:auto}
   #view-gerador .modal{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;width:90%;max-width:540px;max-height:90vh;overflow-y:auto}
   #view-gerador .modal h3{font-size:1rem;font-weight:800;margin-bottom:18px;color:var(--accent)}
   #view-gerador .modal .row{margin-bottom:10px}
