@@ -247,29 +247,20 @@ async function calcularFrete(){
     const tab=FRETE_TABELA[data.uf];
     if(!tab){status.textContent='Estado sem tabela de frete.';status.style.color='#FCA5A5';return;}
 
-    // Verifica frete gratis
-    const subtotal=calcSubtotal();
-    if(subtotal>=3000){
-      gFreteValor=0;gFreteMetodo='gratis';
-      opcoes.style.display='none';
-      gratisEl.innerHTML='🎉 <strong>Frete GRÁTIS!</strong> Pedidos acima de R$ 3.000,00 têm entrega gratuita.';
-      gratisEl.style.display='block';
-      status.textContent='';
-    } else {
-      gratisEl.style.display='none';
-      opcoes.style.display='flex';
-      opcoes.innerHTML=[
-        {id:'sedex',nome:'SEDEX',preco:tab.sedex,prazo:tab.ds},
-        {id:'pac',nome:'PAC',preco:tab.pac,prazo:tab.dp},
-        {id:'jadlog',nome:'Jadlog',preco:tab.jadlog,prazo:tab.dj},
-      ].map(o=>`<div class="frete-opt" id="fo-${o.id}" onclick="selecionarFrete('${o.id}')">
-        <div class="fo-nome">${o.nome}</div>
-        <div class="fo-preco">R$ ${o.preco.toFixed(2).replace('.',',')}</div>
-        <div class="fo-prazo">${o.prazo} dias uteis</div>
-      </div>`).join('');
-      selecionarFrete('jadlog');
-      status.textContent='';
-    }
+    // Sempre mostra as opções SEDEX/PAC/Jadlog. Frete grátis só via cupom (frete_gratis_acima).
+    gratisEl.style.display='none';
+    opcoes.style.display='flex';
+    opcoes.innerHTML=[
+      {id:'sedex',nome:'SEDEX',preco:tab.sedex,prazo:tab.ds},
+      {id:'pac',nome:'PAC',preco:tab.pac,prazo:tab.dp},
+      {id:'jadlog',nome:'Jadlog',preco:tab.jadlog,prazo:tab.dj},
+    ].map(o=>`<div class="frete-opt" id="fo-${o.id}" onclick="selecionarFrete('${o.id}')">
+      <div class="fo-nome">${o.nome}</div>
+      <div class="fo-preco">R$ ${o.preco.toFixed(2).replace('.',',')}</div>
+      <div class="fo-prazo">${o.prazo} dias uteis</div>
+    </div>`).join('');
+    selecionarFrete('jadlog');
+    status.textContent='';
     renderCart();gerarMensagem();
   }catch(e){status.textContent='⚠️ Erro ao consultar CEP.';status.style.color='#FCA5A5';}
 }
