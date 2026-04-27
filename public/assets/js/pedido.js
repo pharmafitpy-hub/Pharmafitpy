@@ -953,7 +953,7 @@ function fecharInformativo() {
 
 function getFreteLabel() {
   if (!freteCep) return 'Não calculado';
-  const nomes = { sedex: 'SEDEX', pac: 'PAC', jadlog: 'Jadlog' };
+  const nomes = { sedex: 'SEDEX', jadlog: 'Jadlog' };
   const cepFormatado = freteCep.replace(/^(\d{5})(\d{3})$/, '$1-$2');
   return `${nomes[freteMetodo] || freteMetodo} · ${freteEstado} · CEP ${cepFormatado} · R$ ${freteValor.toFixed(2).replace('.',',')}`;
 }

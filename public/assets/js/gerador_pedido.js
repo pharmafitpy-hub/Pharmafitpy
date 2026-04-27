@@ -247,12 +247,11 @@ async function calcularFrete(){
     const tab=FRETE_TABELA[data.uf];
     if(!tab){status.textContent='Estado sem tabela de frete.';status.style.color='#FCA5A5';return;}
 
-    // Sempre mostra as opções SEDEX/PAC/Jadlog. Frete grátis só via cupom (frete_gratis_acima).
+    // Sempre mostra as opções SEDEX/Jadlog. Frete grátis só via cupom (frete_gratis_acima).
     gratisEl.style.display='none';
     opcoes.style.display='flex';
     opcoes.innerHTML=[
       {id:'sedex',nome:'SEDEX',preco:tab.sedex,prazo:tab.ds},
-      {id:'pac',nome:'PAC',preco:tab.pac,prazo:tab.dp},
       {id:'jadlog',nome:'Jadlog',preco:tab.jadlog,prazo:tab.dj},
     ].map(o=>`<div class="frete-opt" id="fo-${o.id}" onclick="selecionarFrete('${o.id}')">
       <div class="fo-nome">${o.nome}</div>
@@ -474,7 +473,7 @@ function carregarPedidoNoEditor(p,cli){
       setTimeout(async ()=>{
         const metodoAntes=gFreteMetodo;
         await calcularFrete();
-        if(metodoAntes&&['sedex','pac','jadlog'].includes(metodoAntes)){
+        if(metodoAntes&&['sedex','jadlog'].includes(metodoAntes)){
           selecionarFrete(metodoAntes);
         }
       },50);
