@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Sistema de Cupons — Pharmafit</title>
-<link rel="stylesheet" href="assets/css/theme.css"/>
-<link rel="stylesheet" href="assets/css/vendedores.css"/>
+<title>Sistema de Cupons — Catálogo B2B</title>
+  <link rel="stylesheet" href="assets/css/theme.css"/>
+  <link rel="stylesheet" href="assets/css/vendedores.css"/>
 </head>
 <body>
 
@@ -24,8 +24,8 @@
 <!-- ══ HEADER ══ -->
 <div class="header" id="main-header">
   <div>
-    <div class="header-title">🎟️ Sistema de Cupons</div>
-    <div class="header-sub">Pharmafit — Área das Vendedoras</div>
+    <div class="header-title">🎟️ Sistema de Cupons B2B</div>
+    <div class="header-sub"><span data-client-name></span> — Área das Vendedoras</div>
   </div>
   <div class="header-spacer"></div>
   <span class="header-nome" id="header-nome"></span>
@@ -56,7 +56,7 @@
 
 <div class="wrap">
 
-  <!-- ══ TELA AUTH (login / criar conta) ══ -->
+  <!-- ══ TELA AUTH ══ -->
   <div id="tela-auth">
     <div class="auth-box">
       <div class="auth-logo">🎟️</div>
@@ -200,13 +200,16 @@
       <div class="sec">
         <div class="sec-title">⚙️ Opções Extras</div>
         <div style="display:flex;flex-direction:column;gap:14px">
-          <label style="display:flex;align-items:center;gap:12px;cursor:pointer;font-size:.88rem;color:var(--light)">
-            <input type="checkbox" id="f_parcelamento" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer"/>
+          <label class="opt-row">
+            <input type="checkbox" id="f_parcelamento" class="opt-check"/>
             <span>Ativar parcelamento sem juros (máx. 3×)</span>
           </label>
-          <label style="display:flex;align-items:center;gap:12px;cursor:pointer;font-size:.88rem;color:var(--light)">
-            <input type="checkbox" id="f_frete_gratis" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer"/>
-            <span>Frete grátis para compras acima de R$ 5.000</span>
+          <label class="opt-row">
+            <input type="checkbox" id="f_frete_gratis" class="opt-check"/>
+            <span>Frete grátis acima de R$</span>
+            <input type="number" id="f_frete_minimo" class="opt-input-num" value="5000" min="0" step="50"
+                   onclick="event.preventDefault();this.focus()"
+                   oninput="document.getElementById('f_frete_gratis').checked=true"/>
           </label>
         </div>
       </div>
@@ -227,7 +230,6 @@
 
     <!-- ══ HISTÓRICO ══ -->
     <div id="secao-historico" style="display:none">
-
       <div class="sec">
         <div class="sec-title">📊 Meu Histórico de Vendas</div>
         <p style="font-size:.83rem;color:var(--gray);margin-bottom:16px;line-height:1.6">
@@ -238,7 +240,6 @@
         </button>
         <div class="hist-err" id="hist-err"></div>
       </div>
-
       <div id="hist-resultado" style="display:none">
         <div class="stats-grid" id="hist-stats"></div>
         <div class="sec" style="margin-bottom:0">
@@ -247,8 +248,7 @@
           <div id="hist-list"></div>
         </div>
       </div>
-
-    </div><!-- fim #secao-historico -->
+    </div>
 
     <!-- ══ MEUS CUPONS ══ -->
     <div id="secao-meus-cupons" style="display:none">
@@ -263,13 +263,14 @@
         <div id="mc-err" class="hist-err"></div>
       </div>
       <div id="mc-lista"></div>
-    </div><!-- fim #secao-meus-cupons -->
+    </div>
 
   </div><!-- fim #tela-app -->
 
 </div><!-- fim .wrap -->
 
 <script src="assets/js/config.js"></script>
+<script src="assets/js/client_render.js"></script>
 <script src="assets/js/vendedores.js"></script>
 </body>
 </html>

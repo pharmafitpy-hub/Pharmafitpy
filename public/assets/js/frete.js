@@ -1,7 +1,7 @@
-// ─── frete.js — PharmaFit B2B ─────────────────────────────────────────────────
+// ─── frete.js — Template B2B ──────────────────────────────────────────────────
 // Fonte única de verdade para frete. Importado por:
-//   • pedido_pharmafit.html
-//   • gerador_pedido.html
+//   • pedido.html
+//   • admin/painel.html (aba "Gerar Pedido")
 //
 // Para trocar de tabela fixa para API real no futuro,
 // só mude este arquivo — as páginas não precisam saber.

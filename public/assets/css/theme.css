@@ -1,4 +1,4 @@
-/* PharmaFit B2C — variáveis e reset compartilhados */
+/* Template — variáveis e reset compartilhados (paleta Pharmafit Purple + Amber, dark theme) */
 :root {
   --bg:       #0F0B1A;
   --surface:  #1A1428;
@@ -19,6 +19,9 @@
   --text:     #FFFFFF;
   --input-bg: #1F1935;
   --lavender: #A78BFA;
+  /* Header / nav */
+  --header-bg:    #0F0B1A;
+  --header-text:  #FFFFFF;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

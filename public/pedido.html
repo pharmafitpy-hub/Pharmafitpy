@@ -6,23 +6,24 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
-<title>Pedido PharmaFit-PY</title>
-<link rel="stylesheet" href="assets/css/theme.css"/>
-<link rel="stylesheet" href="assets/css/pedido_pharmafit.css"/>
+<title>Pedido · Catálogo B2B</title>
+  <link rel="stylesheet" href="assets/css/theme.css"/>
+  <link rel="stylesheet" href="assets/css/pedido.css"/>
 </head>
 <body>
 
 <!-- HEADER -->
 <header>
-  <img src="assets/img/logo_pharmafit.png" alt="PharmaFit-PY"
+  <img src="assets/img/logo.png" alt=""
        onerror="this.style.display='none'; document.getElementById('logo-text').style.display='block'"/>
-  <div id="logo-text" style="display:none; width:44px; height:44px; background:#1B4F72; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.2rem;">💊</div>
+  <div id="logo-text" style="display:none; width:44px; height:44px; background:#F59E0B; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.2rem;">📦</div>
   <div>
-    <h1>PharmaFit</h1>
-    <span>Peptídeos de Alta Performance</span>
+    <h1><span data-client-name></span></h1>
+    <span>Formulário de Pedido</span>
   </div>
   <div class="header-right">
     <button class="btn-history" onclick="openHistory()">📋 Histórico</button>
+    <div id="cliente-header-btn" class="header-cli-btn"></div>
   </div>
 </header>
 <!-- POPUP PRAZO DESPACHO -->
@@ -68,12 +69,12 @@
     <div class="panel-title">💊 Selecione os Produtos</div>
     <div class="panel-subtitle">Clique no produto para selecionar e defina a quantidade</div>
 
-    <div id="alert1" class="alert">⚠️ Selecione pelo menos um produto para continuar.</div>
+    <div id="alert1" class="alert">⚠️ Selecione pelo menos 1 produto para continuar.</div>
 
     <input type="search" id="product-search" placeholder="🔍 Buscar produto pelo nome..."
       oninput="activeSearch=this.value.toLowerCase().trim();renderProducts()"
       style="width:100%;padding:9px 14px;border-radius:8px;border:1px solid var(--border);
-             background:#0d1526;color:var(--text);font-size:.88rem;outline:none;font-family:inherit;margin-bottom:14px;display:block"/>
+             background:#f0f7f3;color:var(--text);font-size:.88rem;outline:none;font-family:inherit;margin-bottom:14px;display:block"/>
 
     <!-- ⭐ Em Destaque -->
     <div class="hl-section" id="section-destaque" style="display:none">
@@ -143,10 +144,10 @@
     </div>
   </div>
 
-  <!-- STEP 2 — DADOS CADASTRAIS -->
+  <!-- STEP 2 — DADOS DA CLÍNICA -->
   <div class="step-panel" id="panel2">
-    <div class="panel-title">👤 Seus Dados</div>
-    <div class="panel-subtitle">Preencha seus dados para realizarmos o pedido</div>
+    <div class="panel-title">📋 Dados do Cliente</div>
+    <div class="panel-subtitle">Preencha os dados do responsável pelo pedido</div>
 
     <!-- ── LOGIN PANEL ── -->
     <div id="lp-logado-bar" class="lp-logado-bar" style="display:none">
@@ -162,10 +163,10 @@
 
     <!-- Painel de login (oculto, expande ao clicar) -->
     <div id="lp-panel" class="lp-wrap" style="display:none">
-      <div class="lp-title">🔑 Entre com seu CPF</div>
-      <div class="lp-sub">Digite seu CPF para carregar seus dados automaticamente</div>
+      <div class="lp-title">🔑 Entre com seu CPF ou CNPJ</div>
+      <div class="lp-sub">Digite seu CPF ou CNPJ para carregar seus dados automaticamente</div>
       <div class="lp-input-wrap">
-        <input class="lp-input" id="lp-doc-input" placeholder="CPF ou E-mail" oninput="lpFormatDoc(this)" onkeydown="if(event.key==='Enter')lpEntrar()"/>
+        <input class="lp-input" id="lp-doc-input" placeholder="CPF, CNPJ ou E-mail" oninput="lpFormatDoc(this)" onkeydown="if(event.key==='Enter')lpEntrar()"/>
         <button class="lp-btn-entrar" onclick="lpEntrar()">Entrar</button>
       </div>
       <div class="lp-loading" id="lp-loading">⏳ Buscando dados...</div>
@@ -179,20 +180,16 @@
 
     <div class="form-grid">
       <div class="field full">
-        <label>CPF</label>
-        <input type="text" id="f_documento" placeholder="000.000.000-00"/>
+        <label>CNPJ / CPF</label>
+        <input type="text" id="f_documento" placeholder="00.000.000/0001-00" oninput="agendarBuscaCliente(this.value)"/>
       </div>
       <div class="field full">
-        <label>Seu Nome Completo <span class="required-mark">*</span></label>
-        <input type="text" id="f_clinica" placeholder="Ex: João Silva"/>
+        <label>Nome <span class="required-mark">*</span></label>
+        <input type="text" id="f_clinica" placeholder="Sua empresa, loja ou nome completo"/>
       </div>
       <div class="field">
-        <label>Apelido / Como Prefere Ser Chamado</label>
-        <input type="text" id="f_responsavel" placeholder="Ex: João"/>
-      </div>
-      <div class="field" style="display:none">
-        <label>Cargo / Especialidade</label>
-        <input type="text" id="f_cargo" placeholder="Ex: Médico, Enfermeiro, Proprietário"/>
+        <label>Apelido <span class="required-mark">*</span></label>
+        <input type="text" id="f_responsavel" placeholder="Nome completo"/>
       </div>
       <div class="field">
         <label>Telefone / WhatsApp <span class="required-mark">*</span></label>
@@ -233,7 +230,7 @@
         <input type="text" id="f_estado" placeholder="SP" maxlength="2"/>
       </div>
       <div class="field full">
-        <label>Observações</label>
+        <label>Observações Iniciais</label>
         <textarea id="f_obs" placeholder="Alguma informação adicional sobre o pedido?"></textarea>
       </div>
     </div>
@@ -277,6 +274,9 @@
 
     <!-- Parcelamento (só para cartão) -->
     <div class="installment-wrap" id="installment-wrap">
+      <div id="cupom-parc-badge" style="display:none;background:rgba(245,158,11,.12);border:1px solid var(--accent);border-radius:8px;padding:8px 14px;font-size:.82rem;color:var(--accent);margin-bottom:12px">
+        ⚡ Cupom ativo: parcelas 1× a 3× sem juros!
+      </div>
       <div class="form-grid">
         <div class="field">
           <label>Número de Parcelas</label>
@@ -298,7 +298,7 @@
 
     <!-- FRETE -->
     <div class="frete-section">
-      <div class="frete-header">🚚 Calcular Frete</div>
+      <div class="frete-header">🚚 Calcular Frete (Correios)</div>
       <div class="frete-body">
         <div style="display:flex; gap:10px; align-items:flex-end">
           <div class="field" style="flex:1">
@@ -311,7 +311,7 @@
         </div>
         <div id="frete-loading" style="display:none;text-align:center;padding:12px;color:var(--gray);font-size:.85rem">⏳ Consultando Correios...</div>
         <div id="frete-error" style="display:none;background:rgba(231,76,60,.12);border:1px solid var(--danger);border-radius:8px;padding:10px 14px;font-size:.83rem;color:#f5a;margin-top:10px"></div>
-        <div class="frete-gratis" id="frete-gratis">🎉 Frete grátis para pedidos acima de R$ 3.000!</div>
+        <div class="frete-gratis" id="frete-gratis" style="display:none"></div>
         <div class="frete-metodos" id="frete-metodos" style="display:none">
           <div class="frete-opt" id="fo-sedex" onclick="selecionarFrete('sedex')">
             <div class="fo-icon">⚡</div>
@@ -343,10 +343,10 @@
   <!-- STEP 4 — REVISÃO -->
   <div class="step-panel" id="panel4">
     <div class="panel-title">✅ Revisar e Enviar</div>
-    <div class="panel-subtitle">Confira seus dados antes de enviar pelo WhatsApp</div>
+    <div class="panel-subtitle">Confira todos os dados antes de enviar pelo WhatsApp</div>
 
     <div class="review-card">
-      <div class="rc-header">📋 Dados da Clínica</div>
+      <div class="rc-header">📋 Dados do Cliente</div>
       <div class="rc-body" id="review-dados"></div>
     </div>
 
@@ -372,10 +372,9 @@
                oninput="this.value=this.value.toUpperCase()"
                onkeydown="if(event.key==='Enter') aplicarCupom()"/>
         <button id="btn-cupom" onclick="aplicarCupom()">Aplicar</button>
-        <button id="btn-remover-cupom" onclick="removerCupom()" style="display:none;background:transparent;border:1px solid var(--danger);color:var(--danger);border-radius:8px;padding:10px 14px;font-size:.82rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">✕ Remover</button>
+        <button id="btn-remover-cupom" class="hidden" onclick="removerCupom()">✕ Remover</button>
       </div>
       <div id="cupom-msg"></div>
-      <div id="cupom-beneficios" style="display:none;margin-top:8px;display:flex;flex-direction:column;gap:4px"></div>
     </div>
 
     <!-- Recomendações na revisão -->
@@ -476,8 +475,14 @@
 </div>
 
 <script src="assets/js/config.js"></script>
+<script src="assets/js/cliente_auth.js"></script>
+<script src="assets/js/client_render.js"></script>
 <script src="assets/js/frete.js"></script>
-<script src="assets/js/pedido_pharmafit.js"></script>
+<script src="assets/js/pedido.js"></script>
+<script>
+  // Renderiza o botão "Minha Conta / Entrar" no header
+  renderClienteHeaderBtn('#cliente-header-btn');
+</script>
 
 
 </body>

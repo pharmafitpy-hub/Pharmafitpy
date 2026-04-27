@@ -1,4 +1,4 @@
-name: Deploy PharmaFit B2C
+name: Deploy to GitHub Pages
 
 on:
   push:
@@ -12,27 +12,42 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Inject secrets into config.js
+      - name: Inject SHEETS_URL into config.js
         env:
           SHEETS_URL: ${{ secrets.SHEETS_URL }}
         run: |
-          sed -i "s|%%SHEETS_URL%%|${SHEETS_URL}|g" public/assets/js/config.js
+          if [ -n "$SHEETS_URL" ]; then
+            sed -i "s|%%SHEETS_URL%%|${SHEETS_URL}|g" public/assets/js/config.js
+            echo "SHEETS_URL injected."
+          fi
+
+      - name: Cache bust local assets
+        run: |
+          BUST="${GITHUB_SHA:0:8}"
+          find public -name "*.html" | while read f; do
+            sed -i \
+              -e "s|\.css\"|\.css?v=${BUST}\"|g" \
+              -e "s|\.css'|\.css?v=${BUST}'|g" \
+              -e "s|\(assets/[^\"']*\)\.js\"|\1.js?v=${BUST}\"|g" \
+              -e "s|\(assets/[^\"']*\)\.js'|\1.js?v=${BUST}'|g" \
+              "$f"
+          done
+          echo "Cache bust ${BUST} applied."
 
       - name: Setup Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v4
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

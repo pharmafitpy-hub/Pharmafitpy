@@ -1,4 +1,4 @@
-/* painel.js — PharmaFit B2C Admin Panel */
+/* painel.js — Painel Admin B2B */
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 window.App = {
@@ -8,7 +8,6 @@ window.App = {
   produtos:      [],
   stats:         {},
   admins:        [],
-  vendedoras:    [],
   cupons:        [],
   relatorio:     null,
   kanbanPeriod:  'all',
@@ -51,7 +50,7 @@ const PREV_STATUS = {
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-  const saved = localStorage.getItem('pharmafit_b2c_admin');
+  const saved = localStorage.getItem('lp_admin');
   if (!saved) return (window.location.href = 'index.html');
   App.admin = JSON.parse(saved);
   document.getElementById('admin-nome').textContent = App.admin.nome;
@@ -111,7 +110,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Sincroniza abas do mesmo browser instantaneamente via BroadcastChannel
   if ('BroadcastChannel' in window) {
-    const _bc = new BroadcastChannel('pharmafit-b2c-admin');
+    const _bc = new BroadcastChannel('lp-admin');
     _bc.addEventListener('message', e => {
       if (e.data?.type === 'PEDIDOS_UPDATED') {
         App.pedidos = e.data.pedidos;
@@ -128,14 +127,7 @@ function showLoading(on) {
 }
 
 async function loadAll() {
-  await Promise.all([loadPedidos(), loadClientes(), loadProdutos(), loadStats(), loadVendedoras()]);
-}
-
-async function loadVendedoras() {
-  try {
-    const data = await API.listarVendedoras();
-    if (data.ok) App.vendedoras = data.vendedoras || [];
-  } catch(e) {}
+  await Promise.all([loadPedidos(), loadClientes(), loadProdutos(), loadStats()]);
 }
 
 async function loadCupons() {
@@ -167,7 +159,7 @@ async function loadPedidos() {
     if (data.ok) {
       if (_knownOrderIds === null) {
         // Primeira carga: restaura do sessionStorage para não re-notificar pedidos já existentes
-        const saved = localStorage.getItem('pf_b2c_known_ids');
+        const saved = localStorage.getItem('lp_known_ids');
         _knownOrderIds = saved
           ? new Set(JSON.parse(saved))
           : new Set(data.pedidos.map(p => String(p.id)));
@@ -181,7 +173,7 @@ async function loadPedidos() {
         addNotificacao(titulo, corpo);
       });
       _knownOrderIds = new Set(data.pedidos.map(p => String(p.id)));
-      localStorage.setItem('pf_b2c_known_ids', JSON.stringify([..._knownOrderIds]));
+      localStorage.setItem('lp_known_ids', JSON.stringify([..._knownOrderIds]));
       App.pedidos = data.pedidos;
       updateSwState();
       updateSyncTime();
@@ -213,7 +205,7 @@ async function loadStats() {
 
 async function loadAdmins() {
   try {
-    const data = await API.listarAdmins();
+    const data = await API.call({ action: 'listar_admins' });
     if (data.ok) App.admins = data.admins;
   } catch (e) {}
 }
@@ -235,7 +227,6 @@ function renderCurrentView() {
   if (App.view === 'clientes')      renderClientes();
   if (App.view === 'produtos')      renderProdutos();
   if (App.view === 'notificacoes')  renderNotificacoes();
-  if (App.view === 'vendedoras')   { loadVendedoras().then(renderVendedoras); }
   if (App.view === 'protocolos') {
     if (!App.protocolos) {
       const g = document.getElementById('protocolos-grid');
@@ -248,6 +239,12 @@ function renderCurrentView() {
   if (App.view === 'cupons')     { loadCupons().then(renderCupons); }
   if (App.view === 'relatorio')  { loadRelatorio().then(renderRelatorio); }
   if (App.view === 'config')     { loadAdmins().then(renderConfig); }
+  if (App.view === 'gerador') {
+    if (typeof window.initGerador === 'function') window.initGerador();
+  }
+  if (App.view === 'top-clientes') {
+    loadTopClientes();
+  }
 }
 
 // ── STATS BAR ─────────────────────────────────────────────────────────────────
@@ -859,7 +856,7 @@ async function salvarRastreio(orderId) {
 function printRomaneio(orderId) {
   const order = App.pedidos.find(p => p.id === orderId);
   if (!order) return;
-  sessionStorage.setItem('romaneio_order', JSON.stringify({ ...order, itens: parseItens(order) }));
+  sessionStorage.setItem('lp_romaneio_order', JSON.stringify({ ...order, itens: parseItens(order) }));
   window.open('print/romaneio.html', '_blank');
 }
 
@@ -881,7 +878,6 @@ function corrigirPedido(orderId) {
     cli: {
       clinica:     order.clinica,
       responsavel: order.responsavel,
-      cargo:       order.cargo,
       telefone:    order.telefone,
       email:       order.email_cli,
       cpf:         order.documento,
@@ -890,8 +886,10 @@ function corrigirPedido(orderId) {
       endereco:    order.endereco,
     },
   };
-  sessionStorage.setItem('pharmafit_corrigir', JSON.stringify(payload));
-  window.open('../gerador_pedido.html', '_blank');
+  sessionStorage.setItem('lp_corrigir', JSON.stringify(payload));
+  // Abre a aba "Gerar Pedido" no painel — initGerador lê o sessionStorage
+  // e carrega o pedido automaticamente (mesmo em chamadas subsequentes).
+  setView('gerador');
 }
 
 async function salvarNotaInterna(orderId) {
@@ -933,10 +931,11 @@ function renderClientes() {
     const key = (c.telefone||'').replace(/\D/g,'') || (c.email||'').toLowerCase();
     const nPed = countMap[key] || 0;
     const initials = (c.responsavel || c.clinica || '?').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+    const isVip = c.vip === 'SIM';
     return `
       <div class="admin-card">
         <div class="cli-avatar">${esc(initials)}</div>
-        <div class="cli-card-name">${esc(c.responsavel || c.clinica)}</div>
+        <div class="cli-card-name">${esc(c.responsavel || c.clinica)}${isVip ? '<span class="vip-badge">⭐ VIP</span>' : ''}</div>
         <div class="cli-card-clinic">${esc(c.clinica)}</div>
         <div class="cli-card-info">
           ${c.telefone ? `<span>📱 ${esc(c.telefone)}</span>` : ''}
@@ -947,6 +946,7 @@ function renderClientes() {
             ? `<button class="btn-xs" onclick="abrirHistoricoCliente('${escAttr(c.cpf||c.email)}','${escAttr(c.clinica)}')">${nPed} pedido${nPed>1?'s':''}</button>`
             : `<span style="color:var(--text2);font-size:12px">0 pedidos</span>`}
           <div style="display:flex;gap:4px">
+            <button class="btn-vip-toggle ${isVip?'active':''}" onclick="toggleClienteVip(${JSON.stringify(c).replace(/"/g,'&quot;')})">${isVip ? '⭐ Marcado' : '⭐ VIP'}</button>
             ${c.telefone ? `<a href="https://wa.me/55${c.telefone.replace(/\D/g,'')}" target="_blank" class="btn-xs">WA</a>` : ''}
             <button class="btn-xs" onclick="abrirEditarCliente(${JSON.stringify(c).replace(/"/g,'&quot;')})">✏️</button>
           </div>
@@ -955,36 +955,31 @@ function renderClientes() {
   }).join('');
 }
 
-// ── VENDEDORAS ────────────────────────────────────────────────────────────────
-function renderVendedoras() {
-  const grid = document.getElementById('vendedoras-grid');
-  if (!grid) return;
-  const q = (document.getElementById('busca-vendedoras')?.value || '').toLowerCase();
-  const lista = q
-    ? App.vendedoras.filter(v =>
-        (v.nome || '').toLowerCase().includes(q) ||
-        (v.email || '').toLowerCase().includes(q))
-    : App.vendedoras;
-
-  const countEl = document.getElementById('vendedoras-count');
-  if (countEl) countEl.textContent = `${lista.length} vendedora${lista.length !== 1 ? 's' : ''}`;
-
-  if (lista.length === 0) {
-    grid.innerHTML = '<div class="empty-msg">Nenhuma vendedora cadastrada</div>';
-    return;
+async function toggleClienteVip(cli) {
+  const novoEstado = cli.vip === 'SIM' ? 'NAO' : 'SIM';
+  try {
+    const data = await API.call({
+      action: 'editar_cliente',
+      documento: cli.cpf || '',
+      email_cli: cli.email || '',
+      vip: novoEstado,
+    });
+    if (data.ok) {
+      cli.vip = novoEstado;
+      // Atualiza referência em App.clientes (caso `cli` seja cópia)
+      const ref = App.clientes.find(x =>
+        (x.cpf && cli.cpf && x.cpf === cli.cpf) ||
+        (x.email && cli.email && x.email === cli.email)
+      );
+      if (ref) ref.vip = novoEstado;
+      renderClientes();
+      showToast(novoEstado === 'SIM' ? '⭐ Marcado como VIP' : 'VIP removido');
+    } else {
+      showToast(`Erro: ${data.erro || 'falha'}`);
+    }
+  } catch (e) {
+    showToast('Erro de conexão');
   }
-  grid.innerHTML = lista.map(v => {
-    const initials = (v.nome || v.email || '?').split(/\s+|@/).filter(Boolean).map(w => w[0]).join('').slice(0,2).toUpperCase();
-    return `
-      <div class="admin-card">
-        <div class="cli-avatar">${esc(initials)}</div>
-        <div class="cli-card-name">${esc(v.nome || v.email)}</div>
-        <div class="cli-card-clinic">${esc(v.email)}</div>
-        <div class="cli-card-info">
-          ${v.criado ? `<span>📅 Cadastrada em ${esc(v.criado)}</span>` : ''}
-        </div>
-      </div>`;
-  }).join('');
 }
 
 // ── PRODUTOS ──────────────────────────────────────────────────────────────────
@@ -1038,12 +1033,12 @@ async function updateStock(prodId, valor) {
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 function getArchDays() {
-  const v = localStorage.getItem('pharmafit_b2c_arch_days');
+  const v = localStorage.getItem('lp_arch_days');
   return v === null ? 7 : parseInt(v);
 }
 
 function salvarConfigArquivamento(val) {
-  localStorage.setItem('pharmafit_b2c_arch_days', val);
+  localStorage.setItem('lp_arch_days', val);
   showToast('Configuração salva');
   if (App.view === 'kanban') renderKanban();
 }
@@ -1189,24 +1184,24 @@ async function solicitarNotificacoes() {
   const result = await Notification.requestPermission();
   updateNotifStatus();
   if (result === 'granted') {
-    showNotif('✅ PharmaFit Admin', { body: 'Notificações ativadas! Você receberá alertas de novos pedidos.' });
+    showNotif('✅ Painel Admin', { body: 'Notificações ativadas! Você receberá alertas de novos pedidos.' });
   }
 }
 
 // ── STOCK ALERTS ──────────────────────────────────────────────────────────────
 function getStockAlertThreshold() {
-  return parseInt(localStorage.getItem('pharmafit_b2c_stock_alert') || '5');
+  return parseInt(localStorage.getItem('lp_stock_alert') || '5');
 }
 
 function salvarConfigEstoque(val) {
-  localStorage.setItem('pharmafit_b2c_stock_alert', String(parseInt(val) || 5));
+  localStorage.setItem('lp_stock_alert', String(parseInt(val) || 5));
   showToast('Configuração salva');
 }
 
 function checkStockAlerts() {
   if (Notification.permission !== 'granted') return;
   const threshold = getStockAlertThreshold();
-  const alerted = new Set(JSON.parse(localStorage.getItem('pharmafit_b2c_stock_alerted') || '[]'));
+  const alerted = new Set(JSON.parse(localStorage.getItem('lp_stock_alerted') || '[]'));
   let changed = false;
 
   App.produtos.forEach(p => {
@@ -1234,7 +1229,7 @@ function checkStockAlerts() {
   });
 
   if (changed) {
-    localStorage.setItem('pharmafit_b2c_stock_alerted', JSON.stringify([...alerted]));
+    localStorage.setItem('lp_stock_alerted', JSON.stringify([...alerted]));
   }
 }
 
@@ -1248,7 +1243,7 @@ function updateSyncTime() {
 // ── BACKGROUND SYNC ───────────────────────────────────────────────────────────
 function updateSwState() {
   if (!('caches' in window) || !App.admin) return;
-  caches.open('pharmafit-b2c-sw-state').then(cache =>
+  caches.open('lp-admin-state').then(cache =>
     cache.put('sw-state', new Response(JSON.stringify({
       sheetsUrl: SHEETS_URL,
       email:     App.admin.email,
@@ -1406,8 +1401,15 @@ function hideGlobalResults() {
 }
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
-function logout() {
-  localStorage.removeItem('pharmafit_b2c_admin');
+async function logout() {
+  // Invalida sessão no servidor antes de limpar storage local. Não bloqueia
+  // logout local mesmo se a chamada falhar (rede, server fora, etc).
+  try {
+    if (window.App?.admin?.token) {
+      await API.call({ action: 'logout_admin' });
+    }
+  } catch (_) { /* segue logout local */ }
+  localStorage.removeItem('lp_admin');
   window.location.href = 'index.html';
 }
 
@@ -1498,11 +1500,11 @@ function closeModal() {
 
 // ── CSV EXPORT ────────────────────────────────────────────────────────────────
 function exportarCSV() {
-  const cols = ['ID','Data','Clínica','Responsável','Telefone','Email','Cidade','Estado',
+  const cols = ['ID','Data','Cliente ID','Cliente','Telefone','Email','Documento','Endereço',
     'Produtos','Total','Pagamento','Parcelas','Cupom','Status','Rastreio','FreteMetodo','FreteValor'];
   const rows = App.pedidos.map(p => [
-    p.id, p.data, p.clinica, p.responsavel, p.telefone, p.email_cli,
-    p.cidade, p.estado, (p.produtos||'').replace(/\n/g,' | '),
+    p.id, p.data, p.cliente_id || '', p.clinica, p.telefone, p.email_cli, p.documento || '', p.endereco || '',
+    (p.produtos||'').replace(/\n/g,' | '),
     p.total, p.pagamento, p.parcelas, p.cupom, p.status, p.rastreio, p.freteMetodo, p.freteValor,
   ].map(v => `"${String(v||'').replace(/"/g,'""')}"`).join(','));
   const csv  = [cols.join(','), ...rows].join('\n');
@@ -1636,6 +1638,9 @@ function syncProdPickerInput() {
   renderPrecosFixos();
 }
 
+// State pra preservar preços fixos entre re-renderizações (toggle de produtos)
+window._adminPrecosFixos = window._adminPrecosFixos || {};
+
 function renderPrecosFixos() {
   const wrap  = document.getElementById('nc-precos-wrap');
   const items = document.getElementById('nc-precos-items');
@@ -1643,6 +1648,16 @@ function renderPrecosFixos() {
   const tipo = document.getElementById('nc-tipo')?.value;
   if (tipo !== 'fixo') { wrap.classList.add('hidden'); return; }
   const checked = [...document.querySelectorAll('.prod-pick-cb:checked')].map(cb => cb.value);
+
+  // 1) Captura valores atuais antes do re-render destruir o DOM
+  document.querySelectorAll('.preco-fix-input').forEach(inp => {
+    if (inp.value) window._adminPrecosFixos[inp.dataset.key] = inp.value;
+  });
+  // 2) Limpa keys de produtos que foram desselecionados
+  Object.keys(window._adminPrecosFixos).forEach(k => {
+    if (!checked.includes(k)) delete window._adminPrecosFixos[k];
+  });
+
   if (checked.length === 0) { wrap.classList.add('hidden'); return; }
   wrap.classList.remove('hidden');
   items.innerHTML = checked.map(key => {
@@ -1656,11 +1671,14 @@ function renderPrecosFixos() {
     const basePrice = varIdx !== null
       ? (prod.variantes?.[varIdx]?.preco || prod.preco)
       : prod.preco;
+    const savedVal = window._adminPrecosFixos[key] || '';
     return `
       <div class="preco-fix-row">
         <span class="preco-fix-label">${esc(label)}</span>
         <input type="number" step="0.01" min="0" class="preco-fix-input" data-key="${escAttr(key)}"
-          placeholder="${formatNum(basePrice)}" title="Preço fixo (padrão: R$ ${formatNum(basePrice)})"/>
+          placeholder="${formatNum(basePrice)}" title="Preço fixo (padrão: R$ ${formatNum(basePrice)})"
+          value="${escAttr(savedVal)}"
+          oninput="window._adminPrecosFixos[this.dataset.key]=this.value"/>
       </div>`;
   }).join('');
 }
@@ -1711,6 +1729,7 @@ async function salvarCupomAdmin(e) {
         .map(i => `${i.dataset.key}:${i.value.trim()}`)
         .join('|')
     : '';
+  const freteAtivo = !!freteToggle?.checked;
   const params = {
     codigo:              document.getElementById('nc-codigo').value.trim(),
     tipo,
@@ -1718,7 +1737,8 @@ async function salvarCupomAdmin(e) {
     produtos:            document.getElementById('nc-produtos').value.trim() || 'todos',
     precos,
     validade:            document.getElementById('nc-validade').value.trim() || 'INDETERMINADO',
-    frete_gratis_acima:  (freteToggle?.checked ? document.getElementById('nc-frete').value : '') || '',
+    frete_gratis_acima:  freteAtivo ? (document.getElementById('nc-frete').value || '') : '',
+    frete_gratis_ativo:  freteAtivo ? 'SIM' : 'NAO',
     parcelamento:        document.getElementById('nc-parc').checked ? 'SIM' : 'NAO',
   };
   try {
@@ -1731,6 +1751,7 @@ async function salvarCupomAdmin(e) {
       if (todosCheck) { todosCheck.checked = true; toggleTodosProdutos(todosCheck); }
       const _pi = document.getElementById('nc-prod-items'); if (_pi) _pi.innerHTML = '';
       const _pf = document.getElementById('nc-precos-items'); if (_pf) _pf.innerHTML = '';
+      window._adminPrecosFixos = {}; // limpa state após criar cupom
       document.getElementById('nc-precos-wrap')?.classList.add('hidden');
       document.getElementById('nc-produtos').value = 'todos';
       document.getElementById('nc-valor-wrap').style.display = '';
@@ -1920,7 +1941,9 @@ async function salvarProduto(e) {
   const icone = document.getElementById('ep-icone')?.value.trim(); if (icone) params.icone = icone;
   const cat = document.getElementById('ep-categoria')?.value; if (cat !== undefined) params.categoria = cat;
   const tags = document.getElementById('ep-tags')?.value.trim(); if (tags !== undefined) params.tags = tags;
-  params.destaque = document.getElementById('ep-destaque')?.checked ? 'sim' : '';
+  // Destaque aceita 'destaque' ou 'recomendado' (ou vazio). Aqui é binário —
+  // checkbox marcado = 'destaque'. Pra 'recomendado' edita manualmente na planilha.
+  params.destaque = document.getElementById('ep-destaque')?.checked ? 'destaque' : '';
   try {
     const data = await API.editarProduto(params);
     if (data.ok) {
@@ -2276,7 +2299,7 @@ function abrirNovoProduto() {
           </select>
         </div>
         <div class="field-inline"><label>Tags (vírgula)</label>
-          <input id="np-tags" placeholder="ex: peptídeo, injetável"/></div>
+          <input id="np-tags" placeholder="ex: tag1, tag2"/></div>
       </div>
 
       <div class="var-section">
@@ -2404,7 +2427,7 @@ function renderRelatorio() {
     </div>` : ''}
   `;
 
-  const chartOpts = { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8' }, grid: { color: '#1e3a52' } }, y: { ticks: { color: '#94a3b8' }, grid: { color: '#1e3a52' } } } };
+  const chartOpts = { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#7aaccb' }, grid: { color: '#1e3a52' } }, y: { ticks: { color: '#7aaccb' }, grid: { color: '#1e3a52' } } } };
   const horizOpts = { ...chartOpts, indexAxis: 'y' };
 
   // Destroy old charts
@@ -2415,7 +2438,7 @@ function renderRelatorio() {
     type: 'bar',
     data: {
       labels:   d.semanas.map(s => s.label),
-      datasets: [{ data: d.semanas.map(s => s.total), backgroundColor: '#f43f5e', borderRadius: 4 }],
+      datasets: [{ data: d.semanas.map(s => s.total), backgroundColor: '#1abc9c', borderRadius: 4 }],
     },
     options: { ...chartOpts, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => 'R$ ' + ctx.raw.toFixed(2).replace('.',',') } } } },
   });
@@ -2446,19 +2469,19 @@ function renderRelatorio() {
       labels:   stLabels,
       datasets: [{ data: stLabels.map(k => d.por_status[k]), backgroundColor: stLabels.map(k => statusCores[k] || '#6b7280'), borderWidth: 0 }],
     },
-    options: { responsive: true, plugins: { legend: { position: window.innerWidth < 768 ? 'bottom' : 'right', labels: { color: '#94a3b8', font: { size: window.innerWidth < 768 ? 10 : 11 } } } } },
+    options: { responsive: true, plugins: { legend: { position: window.innerWidth < 768 ? 'bottom' : 'right', labels: { color: '#7aaccb', font: { size: window.innerWidth < 768 ? 10 : 11 } } } } },
   });
 
   if (d.por_pagamento && Object.keys(d.por_pagamento).length > 0) {
     const pagLabels = Object.keys(d.por_pagamento);
-    const pagCores  = ['#f43f5e','#3b82f6','#f59e0b','#8b5cf6','#ef4444'];
+    const pagCores  = ['#1abc9c','#3b82f6','#f59e0b','#8b5cf6','#ef4444'];
     App.charts.pagamento = new Chart(document.getElementById('chart-pagamento'), {
       type: 'doughnut',
       data: {
         labels:   pagLabels,
         datasets: [{ data: pagLabels.map(k => d.por_pagamento[k]), backgroundColor: pagLabels.map((_, i) => pagCores[i % pagCores.length]), borderWidth: 0 }],
       },
-      options: { responsive: true, plugins: { legend: { position: window.innerWidth < 768 ? 'bottom' : 'right', labels: { color: '#94a3b8', font: { size: window.innerWidth < 768 ? 10 : 11 } } } } },
+      options: { responsive: true, plugins: { legend: { position: window.innerWidth < 768 ? 'bottom' : 'right', labels: { color: '#7aaccb', font: { size: window.innerWidth < 768 ? 10 : 11 } } } } },
     });
   }
 
@@ -2467,9 +2490,243 @@ function renderRelatorio() {
       type: 'bar',
       data: {
         labels:   d.por_vendedora.map(v => v.nome.length > 25 ? v.nome.slice(0,23)+'…' : v.nome),
-        datasets: [{ data: d.por_vendedora.map(v => v.total), backgroundColor: '#f43f5e', borderRadius: 4 }],
+        datasets: [{ data: d.por_vendedora.map(v => v.total), backgroundColor: '#f59e0b', borderRadius: 4 }],
       },
       options: { ...chartOpts, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => 'R$ ' + ctx.raw.toFixed(2).replace('.',',') } } } },
     });
   }
+}
+
+// ── TOP CLIENTES ─────────────────────────────────────────────────────────────
+let _topClientes = [];
+let _tcSelected = new Set();
+let _tcPeriod = 0;
+let _tcVipMode = 'incluir'; // 'incluir' | 'apenas' | 'nao'
+let _bcQueue = [];
+let _bcPos = 0;
+let _bcMsg = '';
+let _bcSent = new Set();
+
+async function loadTopClientes() {
+  const list = document.getElementById('top-cli-list');
+  if (list) list.innerHTML = '<div class="loading-msg">⏳ Carregando...</div>';
+  try {
+    const data = await API.call({
+      action: 'top_clientes',
+      periodo: _tcPeriod,
+      min_pedidos: parseInt(document.getElementById('tc-min-pedidos')?.value || 1),
+      limit: parseInt(document.getElementById('tc-limit')?.value || 25),
+      incluir_vips: _tcVipMode === 'nao' ? '0' : '1',
+      apenas_vips: _tcVipMode === 'apenas' ? '1' : '0',
+    });
+    if (data && data.ok) {
+      _topClientes = data.clientes || [];
+      renderTopClientes();
+    } else {
+      if (list) list.innerHTML = `<div class="loading-msg">⚠ ${esc(data?.erro || 'Erro ao carregar')}</div>`;
+    }
+  } catch (e) {
+    if (list) list.innerHTML = '<div class="loading-msg">⚠ Erro de conexão</div>';
+  }
+}
+
+function setTcPeriod(btn, dias) {
+  document.querySelectorAll('[data-tc-period]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _tcPeriod = dias;
+  loadTopClientes();
+}
+
+function setTcVipMode(btn, mode) {
+  document.querySelectorAll('[data-tc-vip]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _tcVipMode = mode;
+  loadTopClientes();
+}
+
+function _tcKey(c) { return c.telefone || c.email || c.documento || c.nome.toLowerCase(); }
+
+function renderTopClientes() {
+  const list = document.getElementById('top-cli-list');
+  if (!list) return;
+  const search = (document.getElementById('tc-search')?.value || '').toLowerCase();
+  let visible = _topClientes;
+  if (search) {
+    visible = visible.filter(c =>
+      (c.nome||'').toLowerCase().includes(search) ||
+      (c.apelido||'').toLowerCase().includes(search) ||
+      (c.telefone||'').includes(search) ||
+      (c.email||'').toLowerCase().includes(search)
+    );
+  }
+  if (!visible.length) {
+    list.innerHTML = '<div class="loading-msg">Nenhum cliente encontrado</div>';
+    updateTcFooter();
+    return;
+  }
+  list.innerHTML = visible.map((c, i) => {
+    const rank = _topClientes.indexOf(c) + 1; // ranking real, não filtrado
+    const medalha = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
+    const key = _tcKey(c);
+    const checked = _tcSelected.has(key);
+    const tel = c.telefone ? formatPhone_tc(c.telefone) : '—';
+    const prods = (c.top_produtos||[]).map(p => `${esc(p.nome)} (${p.qty})`).join(', ');
+    return `
+      <div class="tc-card ${checked?'selected':''} ${c.vip === 'SIM' ? 'is-vip' : ''}">
+        <input type="checkbox" class="tc-check" ${checked?'checked':''} onchange="toggleTc('${escAttr(key)}', this.checked)"/>
+        <div class="tc-rank">${medalha}</div>
+        <div class="tc-info">
+          <div class="tc-name">${esc(c.nome)}${c.apelido ? ` <span class="tc-apelido">(${esc(c.apelido)})</span>` : ''}${c.vip === 'SIM' ? '<span class="vip-badge">⭐ VIP</span>' : ''}</div>
+          <div class="tc-meta">${esc(c.cidade||'—')}${c.estado?', '+esc(c.estado):''}${tel?' · '+esc(tel):''}</div>
+          <div class="tc-stats">📦 <strong>${c.n_pedidos}</strong> pedidos · 💰 <strong>R$ ${formatMoeda(c.total_gasto)}</strong> · 📅 ${esc(c.ultimo_pedido||'—')}</div>
+          ${prods ? `<div class="tc-prods">🛒 ${prods}</div>` : ''}
+        </div>
+        <div class="tc-actions">
+          <button class="btn-xs btn-wa-tc" onclick="openWAFromTop('${escAttr(c.telefone||'')}')">💬 WhatsApp</button>
+        </div>
+      </div>`;
+  }).join('');
+  updateTcFooter();
+}
+
+function toggleTc(key, checked) {
+  if (checked) _tcSelected.add(key); else _tcSelected.delete(key);
+  // Atualiza só o card relevante (não re-renderiza tudo)
+  const cards = document.querySelectorAll('.tc-card');
+  cards.forEach(card => {
+    const cb = card.querySelector('.tc-check');
+    if (cb && cb.checked) card.classList.add('selected');
+    else card.classList.remove('selected');
+  });
+  updateTcFooter();
+}
+
+function updateTcFooter() {
+  const footer = document.getElementById('tc-footer');
+  if (!footer) return;
+  const count = _tcSelected.size;
+  if (count === 0) { footer.classList.add('hidden'); return; }
+  footer.classList.remove('hidden');
+  document.getElementById('tc-selected-count').textContent = count;
+  let total = 0;
+  _topClientes.forEach(c => { if (_tcSelected.has(_tcKey(c))) total += c.total_gasto || 0; });
+  document.getElementById('tc-selected-total').textContent = formatMoeda(total);
+}
+
+function openWAFromTop(tel) {
+  if (!tel) { showToast('Cliente sem telefone'); return; }
+  const num = String(tel).replace(/\D/g, '');
+  if (num.length < 8) { showToast('Telefone inválido'); return; }
+  window.open(`https://wa.me/${num}`, '_blank');
+}
+
+function copyTopFones() {
+  const sel = _topClientes.filter(c => _tcSelected.has(_tcKey(c)));
+  const fones = sel.map(c => '+' + (c.telefone || '').replace(/\D/g, '')).filter(f => f.length > 5);
+  if (fones.length === 0) { showToast('Nenhum telefone válido nos selecionados'); return; }
+  navigator.clipboard.writeText(fones.join('\n')).then(() => {
+    showToast(`${fones.length} telefones copiados!`);
+  });
+}
+
+function clearTopSelection() {
+  _tcSelected.clear();
+  document.querySelectorAll('.tc-check').forEach(cb => cb.checked = false);
+  document.querySelectorAll('.tc-card.selected').forEach(c => c.classList.remove('selected'));
+  updateTcFooter();
+}
+
+function _tcApplyVars(msg, cli) {
+  const primeiroNome = (cli.apelido || cli.nome || '').split(' ')[0] || '';
+  return msg
+    .replace(/\{\{nome\}\}/gi, cli.nome || '')
+    .replace(/\{\{primeiro_nome\}\}/gi, primeiroNome)
+    .replace(/\{\{apelido\}\}/gi, cli.apelido || cli.nome || '');
+}
+
+function openBroadcastModal() {
+  if (_tcSelected.size === 0) { showToast('Selecione clientes primeiro'); return; }
+  document.getElementById('bc-count').textContent = _tcSelected.size;
+  document.getElementById('bc-message').value = localStorage.getItem('lp_bc_lastMsg') || '';
+  updateBcPreview();
+  document.getElementById('bc-modal-compose').classList.remove('hidden');
+}
+
+function updateBcPreview() {
+  const msg = document.getElementById('bc-message').value;
+  const sel = _topClientes.filter(c => _tcSelected.has(_tcKey(c)));
+  if (sel.length === 0) return;
+  const c = sel[0];
+  const replaced = _tcApplyVars(msg, c);
+  document.getElementById('bc-preview').innerHTML =
+    msg.trim() === ''
+      ? '<small style="color:var(--gray)">Pré-visualização aparece aqui</small>'
+      : `<small>Pré-visualização (1 de ${sel.length}, ${esc(c.nome)}):</small><pre>${esc(replaced)}</pre>`;
+}
+
+function closeBroadcastModal() {
+  document.getElementById('bc-modal-compose').classList.add('hidden');
+}
+
+function startBroadcast() {
+  _bcMsg = document.getElementById('bc-message').value.trim();
+  if (!_bcMsg) { showToast('Digite a mensagem antes'); return; }
+  localStorage.setItem('lp_bc_lastMsg', _bcMsg);
+
+  _bcQueue = _topClientes.filter(c => _tcSelected.has(_tcKey(c)) && c.telefone);
+  if (_bcQueue.length === 0) { showToast('Nenhum cliente selecionado tem telefone'); return; }
+  _bcPos = 0;
+  _bcSent = new Set();
+  closeBroadcastModal();
+  document.getElementById('bc-modal-guided').classList.remove('hidden');
+  renderGuided();
+}
+
+function renderGuided() {
+  const c = _bcQueue[_bcPos];
+  if (!c) {
+    // Acabou
+    document.getElementById('bc-cli-name').innerHTML = '✅ Pronto!';
+    document.getElementById('bc-cli-phone').textContent = `Você abriu ${_bcSent.size} de ${_bcQueue.length} conversa(s).`;
+    document.getElementById('bc-cli-msg-preview').innerHTML = '';
+    return;
+  }
+  document.getElementById('bc-pos').textContent = _bcPos + 1;
+  document.getElementById('bc-total').textContent = _bcQueue.length;
+  document.getElementById('bc-cli-name').textContent = `Próximo: ${c.nome}${c.apelido ? ' ('+c.apelido+')' : ''}`;
+  document.getElementById('bc-cli-phone').textContent = formatPhone_tc(c.telefone);
+  const msg = _tcApplyVars(_bcMsg, c);
+  document.getElementById('bc-cli-msg-preview').innerHTML = `<pre>${esc(msg)}</pre>`;
+  document.getElementById('bc-sent').textContent = _bcSent.size;
+  document.getElementById('bc-remaining').textContent = _bcQueue.length - _bcPos - 1;
+  document.getElementById('bc-prev-btn').disabled = _bcPos === 0;
+}
+
+function bcOpenWA() {
+  const c = _bcQueue[_bcPos];
+  if (!c) return;
+  const num = String(c.telefone).replace(/\D/g, '');
+  const msg = _tcApplyVars(_bcMsg, c);
+  window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
+  _bcSent.add(_bcPos);
+  document.getElementById('bc-sent').textContent = _bcSent.size;
+}
+
+function bcNext() { if (_bcPos < _bcQueue.length - 1) _bcPos++; else _bcPos = _bcQueue.length; renderGuided(); }
+function bcPrev() { if (_bcPos > 0) _bcPos--; renderGuided(); }
+function bcSkip() { bcNext(); }
+
+function closeGuided() {
+  if (_bcSent.size > 0 && _bcPos < _bcQueue.length && !confirm(`Você abriu ${_bcSent.size} conversa(s). Tem certeza que quer sair?`)) return;
+  document.getElementById('bc-modal-guided').classList.add('hidden');
+}
+
+// Helper: formata telefone brasileiro
+function formatPhone_tc(tel) {
+  const t = String(tel||'').replace(/\D/g, '');
+  if (t.length === 13) return `+${t.slice(0,2)} (${t.slice(2,4)}) ${t.slice(4,9)}-${t.slice(9)}`;
+  if (t.length === 12) return `+${t.slice(0,2)} (${t.slice(2,4)}) ${t.slice(4,8)}-${t.slice(8)}`;
+  if (t.length === 11) return `(${t.slice(0,2)}) ${t.slice(2,7)}-${t.slice(7)}`;
+  if (t.length === 10) return `(${t.slice(0,2)}) ${t.slice(2,6)}-${t.slice(6)}`;
+  return tel;
 }

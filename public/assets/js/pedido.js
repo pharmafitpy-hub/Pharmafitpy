@@ -3,8 +3,16 @@ let freteValor = 0;
 let freteMetodo = '';
 let freteCep = '';
 let freteEstado = '';
-let _savedFrete = null; // salva estado do frete antes do cupom grátis
 
+// ── ESCAPE HTML ──
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s) {
+  return String(s || '').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+// ─── STATE ──────────────────────────────────────────────────────────────────
 // ─── CORRELAÇÕES ────────────────────────────────────────────────────────────
 const CORRELACOES = {
   '1':  ['32','42','8'],    '2':  ['32','46','7'],    '3':  ['32','46','7'],
@@ -25,7 +33,6 @@ const CORRELACOES = {
   '48': ['46','43','12'],   '49': ['46','44','12'],
 };
 
-// ─── STATE ──────────────────────────────────────────────────────────────────
 let CATALOG = [];
 let PROTOCOLS = {};
 let currentStep = 1;
@@ -46,35 +53,60 @@ let PARCELAS_CONFIG = []; // carregado do Sheets (aba "Parcelas")
 let cupomAplicado  = false;
 let cupomDesconto  = 0;
 let cupomCodigo    = '';
-let cupomData      = null;
+let cupomData      = null; // objeto {tipo, valor, produtos, precos}
 
 // ─── INIT ───────────────────────────────────────────────────────────────────
 window.onload = () => {
   carregarProdutos();
+  // Restaura sessão de cliente do localStorage e pré-popula form
+  try {
+    const sess = (typeof getClienteSession === 'function') ? getClienteSession() : null;
+    if (sess && sess.token) {
+      _clienteJaLogado = true;
+      preencherStep2(sess);
+      if (typeof lpSetLogado === 'function') {
+        lpSetLogado(sess.nome || sess.clinica || '', sess.apelido || '');
+      }
+      const jaTem = document.getElementById('lp-ja-tem-conta');
+      if (jaTem) jaTem.style.display = 'none';
+    }
+  } catch(e) { /* sem sessão */ }
 };
+
+// ── CACHE (apenas dados estáticos — protocolos e parcelas, 30min TTL) ─────────
+// Preços, promos e cupons NUNCA são cacheados: devem ser sempre frescos.
+const PF_CACHE_TTL = 30 * 60 * 1000;
+function pfFromCache_(k){try{const c=sessionStorage.getItem('lp_'+k);if(!c)return null;const{data,ts}=JSON.parse(c);return(Date.now()-ts)<PF_CACHE_TTL?data:null;}catch(e){return null;}}
+function pfToCache_(k,d){try{sessionStorage.setItem('lp_'+k,JSON.stringify({data:d,ts:Date.now()}));}catch(e){}}
+function pfBgRefresh_(k,url){fetch(url).then(r=>r.json()).then(d=>pfToCache_(k,d)).catch(()=>{});}
 
 async function carregarProdutos() {
   const grid = document.getElementById('products-grid');
   grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--gray)">⏳ Carregando produtos...</div>';
   try {
-    const [resProd, resProt] = await Promise.all([
-      fetch(`${SHEETS_URL}?action=produtos`),
-      fetch(`${SHEETS_URL}?action=protocolos`)
+    // produtos: sempre frescos (preços/promos mudam)
+    // protocolos: cacheados 30min (texto científico estático)
+    const [data, prots] = await Promise.all([
+      fetch(`${SHEETS_URL}?action=produtos`).then(r=>r.json()),
+      (async () => {
+        const c = pfFromCache_('protos'); if(c){pfBgRefresh_('protos',`${SHEETS_URL}?action=protocolos`);return c;}
+        const d = await fetch(`${SHEETS_URL}?action=protocolos`).then(r=>r.json()); pfToCache_('protos',d); return d;
+      })(),
     ]);
-    const data = await resProd.json();
-    PROTOCOLS = await resProt.json();
+    PROTOCOLS = prots;
 
-    // Cupons — carregado separado para não travar se aba não existir
+    // Cupons: sempre frescos (expiram)
     try {
-      const resCupons = await fetch(`${SHEETS_URL}?action=cupons`);
-      const cuponsData = await resCupons.json();
+      const cuponsData = await fetch(`${SHEETS_URL}?action=cupons`).then(r=>r.json());
       if (cuponsData && typeof cuponsData === 'object') CUPONS_VALIDOS = cuponsData;
-    } catch(e) { /* sem cupons configurados ainda */ }
+    } catch(e) { /* sem cupons */ }
 
-    // Parcelas — carregado do Sheets
+    // Parcelas: cacheadas 30min (configuração raramente muda)
     try {
-      const resParcelas = await fetch(`${SHEETS_URL}?action=parcelas`);
-      const parcelasData = await resParcelas.json();
+      const pc = pfFromCache_('parcelas');
+      const parcelasData = pc || await fetch(`${SHEETS_URL}?action=parcelas`).then(r=>r.json());
+      if (!pc) pfToCache_('parcelas', parcelasData);
+      else pfBgRefresh_('parcelas',`${SHEETS_URL}?action=parcelas`);
       if (Array.isArray(parcelasData) && parcelasData.length > 0) {
         PARCELAS_CONFIG = parcelasData;
         const sel = document.getElementById('f_parcelas');
@@ -83,7 +115,6 @@ async function carregarProdutos() {
         ).join('');
       }
     } catch(e) { /* usa opções padrão do HTML */ }
-
     CATALOG = data.map(p => ({
       id:          p.id,
       icon:        p.icone,
@@ -112,22 +143,28 @@ async function carregarProdutos() {
 }
 
 // ─── FILTERS & SORT ─────────────────────────────────────────────────────────
+// As categorias abaixo são preenchidas dinamicamente a partir das tags da planilha.
+// Mantemos apenas "Todos" como categoria base — as demais são geradas em renderFilters().
 const CATEGORIAS = [
-  { val: 'todos',          label: 'Todos' },
-  { val: 'emagrecimento',  label: '⚡ Emagrecimento' },
-  { val: 'peptideo',       label: '🧬 Peptídeo' },
-  { val: 'estetica',       label: '✨ Estética' },
+  { val: 'todos', label: 'Todos' },
 ];
 
 function renderFilters() {
   const labs = [...new Set(CATALOG.filter(p => p.lab).map(p => p.lab))].sort();
   document.getElementById('lab-filters').innerHTML = ['Todos', ...labs].map(l => {
     const val = l === 'Todos' ? 'todos' : l;
-    return `<button class="lab-btn ${val === activeLabFilter ? 'active' : ''}" onclick="setLabFilter('${val}')">${l}</button>`;
+    return `<button class="lab-btn ${val === activeLabFilter ? 'active' : ''}" onclick="setLabFilter('${escAttr(val)}')">${esc(l)}</button>`;
   }).join('');
 
-  document.getElementById('tag-filters').innerHTML = CATEGORIAS.map(c =>
-    `<button class="lab-btn ${c.val === activeTagFilter ? 'active' : ''}" onclick="setTagFilter('${c.val}')">${c.label}</button>`
+  // Tags dinâmicas a partir do catálogo (se nenhuma, esconde a sessão).
+  const allTags = new Set();
+  CATALOG.forEach(p => {
+    (Array.isArray(p.tags) ? p.tags : []).forEach(t => { if (t) allTags.add(String(t)); });
+  });
+  const dyn = [...allTags].sort().map(t => ({ val: t.toLowerCase(), label: t }));
+  const cats = [...CATEGORIAS, ...dyn];
+  document.getElementById('tag-filters').innerHTML = cats.map(c =>
+    `<button class="lab-btn ${c.val === activeTagFilter ? 'active' : ''}" onclick="setTagFilter('${escAttr(c.val)}')">${esc(c.label)}</button>`
   ).join('');
 }
 
@@ -175,6 +212,70 @@ function getEffectivePrice(p) {
 }
 
 // ─── PROMO HELPERS ──────────────────────────────────────────────────────────
+// ─── ACESSO RÁPIDO — CLIENTE RECORRENTE ─────────────────────────────────────
+let _buscaTimer = null;
+
+function agendarBuscaCliente(valor) {
+  clearTimeout(_buscaTimer);
+  const doc = valor.replace(/\D/g,'');
+  // Dispara quando tiver 11 dígitos (CPF) ou 14 dígitos (CNPJ)
+  if (doc.length === 11 || doc.length === 14) {
+    _buscaTimer = setTimeout(() => buscarCliente(doc), 600);
+  }
+}
+
+async function buscarCliente(docParam) {
+  const doc = (docParam || '').replace(/\D/g,'');
+  if (!doc || (doc.length !== 11 && doc.length !== 14)) return;
+
+  const loading       = document.getElementById('ar-loading');
+  const bemVindo      = document.getElementById('ar-bem-vindo');
+  const naoEncontrado = document.getElementById('ar-nao-encontrado');
+  const limpar        = document.getElementById('ar-limpar');
+
+  loading.style.display       = 'block';
+  bemVindo.style.display      = 'none';
+  naoEncontrado.style.display = 'none';
+  limpar.style.display        = 'none';
+
+  try {
+    const res  = await fetch(`${SHEETS_URL}?action=cliente&documento=${encodeURIComponent(doc)}`);
+    const data = await res.json();
+    loading.style.display = 'none';
+
+    if (data && data.clinica) {
+      const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+      set('f_clinica',     data.clinica);
+      set('f_responsavel', data.responsavel);
+      set('f_telefone',    data.telefone);
+      set('f_email',       data.email);
+      set('f_documento',   data.documento);
+      set('f_cidade',      data.cidade);
+      set('f_estado',      data.estado);
+      set('f_endereco',    data.endereco);
+
+      if (Array.isArray(data.historico)) clienteHistorico = data.historico;
+      bemVindo.style.display = 'block';
+      bemVindo.innerHTML = `✅ Bem-vindo de volta, <strong>${esc(data.responsavel || data.clinica)}</strong>! Dados preenchidos automaticamente.`;
+      limpar.style.display = 'block';
+    } else {
+      naoEncontrado.innerHTML = '⚠️ Não encontramos seus dados. Preencha o formulário manualmente abaixo.';
+      naoEncontrado.style.display = 'block';
+    }
+  } catch(e) {
+    loading.style.display = 'none';
+  }
+}
+
+function limparAcesso() {
+  document.getElementById('ar-bem-vindo').style.display = 'none';
+  document.getElementById('ar-nao-encontrado').style.display = 'none';
+  document.getElementById('ar-limpar').style.display = 'none';
+  ['f_clinica','f_responsavel','f_telefone','f_email','f_documento','f_cep_entrega','f_rua','f_numero','f_bairro','f_complemento','f_cidade','f_estado'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+}
+
 function aplicarCupom() {
   const codigo = (document.getElementById('f_cupom').value || '').trim().toUpperCase();
   const msg    = document.getElementById('cupom-msg');
@@ -194,10 +295,8 @@ function aplicarCupom() {
       cupomData     = c;
       cupomDesconto = c.tipo === '%' ? c.valor / 100 : 0;
     }
-    document.getElementById('f_cupom').disabled         = true;
-    document.getElementById('btn-cupom').disabled        = true;
-    document.getElementById('btn-remover-cupom').style.display = '';
-    // calcula desconto já com os itens do carrinho
+    document.getElementById('f_cupom').disabled   = true;
+    document.getElementById('btn-cupom').disabled = true;
     const descValor = calcularDescontoCupom();
     const descStr   = descValor > 0
       ? ` — <strong>R$ ${descValor.toLocaleString('pt-BR',{minimumFractionDigits:2})} de desconto</strong>`
@@ -205,48 +304,22 @@ function aplicarCupom() {
     let msgTxt = '';
     if (cupomData.tipo === '%') {
       if (cupomData.produtos === 'todos') {
-        msgTxt = `✅ Cupom <strong>${codigo}</strong> aplicado! ${cupomData.valor}% de desconto em todos os produtos${descStr}.`;
+        msgTxt = `✅ Cupom <strong>${esc(codigo)}</strong> aplicado! ${esc(cupomData.valor)}% de desconto em todos os produtos${descStr}.`;
       } else {
         const prods = Array.isArray(cupomData.produtos) ? cupomData.produtos : [];
         const n = Object.keys(cart).filter(k => { const b = k.split('__')[0]; return prods.includes(k) || prods.includes(b); }).length;
-        msgTxt = `✅ Cupom <strong>${codigo}</strong> aplicado! ${cupomData.valor}% em ${n || prods.length} produto(s)${descStr}.`;
+        msgTxt = `✅ Cupom <strong>${esc(codigo)}</strong> aplicado! ${esc(cupomData.valor)}% em ${n || prods.length} produto(s)${descStr}.`;
       }
     } else {
       const precos = cupomData.precos || {};
       const n = Object.keys(cart).filter(k => { const b = k.split('__')[0]; return precos[k] !== undefined || precos[b] !== undefined; }).length;
-      msgTxt = `✅ Cupom <strong>${codigo}</strong> aplicado! Preço especial em ${n || Object.keys(precos).length} produto(s)${descStr}.`;
+      msgTxt = `✅ Cupom <strong>${esc(codigo)}</strong> aplicado! Preço especial em ${n || Object.keys(precos).length} produto(s)${descStr}.`;
     }
-    // Parcelamento sem juros via cupom
-    const beneficios = [];
-    if (cupomData.parcelamento) {
-      const sel = document.getElementById('f_parcelas');
-      const selAtual = sel.value; // preserva seleção atual
-      sel.innerHTML = '<option value="1">1x sem juros</option><option value="2">2x sem juros</option><option value="3">3x sem juros</option>';
-      sel.dataset.cupomParc = '1';
-      if (['1','2','3'].includes(selAtual)) sel.value = selAtual; // restaura se válido
-      beneficios.push(`⚡ Parcelamento sem juros em até 3× ativado pelo cupom`);
-    }
-    // Frete grátis via cupom
-    if (cupomData.frete_gratis_acima > 0 && getTotal() >= cupomData.frete_gratis_acima) {
-      _savedFrete = { valor: freteValor, metodo: freteMetodo }; // salva estado anterior
-      freteValor  = 0;
-      freteMetodo = 'gratis-cupom';
-      const el = document.getElementById('frete-gratis');
-      el.textContent = `🎁 Frete grátis pelo cupom ${codigo}!`;
-      el.classList.add('show');
-      document.getElementById('frete-metodos').style.display = 'none';
-      beneficios.push(`🚚 Frete grátis ativado (pedido acima de R$ ${cupomData.frete_gratis_acima.toLocaleString('pt-BR',{minimumFractionDigits:2})})`);
-    } else if (cupomData.frete_gratis_acima > 0) {
-      const falta = cupomData.frete_gratis_acima - getTotal();
-      beneficios.push(`🚚 Frete grátis ao atingir R$ ${cupomData.frete_gratis_acima.toLocaleString('pt-BR',{minimumFractionDigits:2})} (faltam R$ ${falta.toLocaleString('pt-BR',{minimumFractionDigits:2})})`);
-    }
-    const benEl = document.getElementById('cupom-beneficios');
-    if (beneficios.length) {
-      benEl.innerHTML = beneficios.map(b => `<div style="font-size:.78rem;color:var(--green);font-weight:600">${b}</div>`).join('');
-      benEl.style.display = 'flex';
-    }
-    if (selectedPayment === 'Cartão de Crédito') calcInstallment();
     msg.innerHTML = `<div class="cupom-ok">${msgTxt}</div>`;
+    document.getElementById('btn-remover-cupom').classList.remove('hidden');
+    checkCupomExtras();
+    // Cupom afeta o total → valor por parcela muda
+    if (selectedPayment === 'Cartão de Crédito') calcInstallment();
     buildReview();
   } else {
     cupomAplicado = false;
@@ -257,61 +330,53 @@ function aplicarCupom() {
 }
 
 function removerCupom() {
-  const hadParc  = cupomData?.parcelamento;
-  const hadFrete = cupomData?.frete_gratis_acima > 0;
-  cupomAplicado = false; cupomDesconto = 0; cupomCodigo = ''; cupomData = null;
-  const inp = document.getElementById('f_cupom');
-  inp.value = ''; inp.disabled = false;
+  cupomAplicado = false;
+  cupomCodigo   = '';
+  cupomDesconto = 0;
+  cupomData     = null;
+  document.getElementById('f_cupom').disabled   = false;
+  document.getElementById('f_cupom').value      = '';
   document.getElementById('btn-cupom').disabled = false;
-  document.getElementById('btn-remover-cupom').style.display = 'none';
+  document.getElementById('btn-remover-cupom').classList.add('hidden');
   document.getElementById('cupom-msg').innerHTML = '';
-  document.getElementById('cupom-beneficios').style.display = 'none';
-  document.getElementById('cupom-beneficios').innerHTML = '';
-  if (hadParc) {
-    const sel = document.getElementById('f_parcelas');
-    const valorAntes = sel.value; // guarda antes de reconstruir
-    delete sel.dataset.cupomParc;
-    if (PARCELAS_CONFIG.length > 0) {
-      sel.innerHTML = PARCELAS_CONFIG.map(p =>
-        `<option value="${p.parcelas}">${p.parcelas}x ${p.juros > 0 ? '+ ' + p.juros + '%' : 'sem juros'}</option>`
-      ).join('');
-    } else {
-      sel.innerHTML = '<option value="1">1x sem juros</option><option value="2">2x sem juros</option><option value="3">3x sem juros</option>';
-    }
-    if (sel.querySelector(`option[value="${valorAntes}"]`)) sel.value = valorAntes;
-    if (selectedPayment === 'Cartão de Crédito') calcInstallment();
-  }
-  if (hadFrete && freteMetodo === 'gratis-cupom') {
-    if (_savedFrete) {
-      freteValor  = _savedFrete.valor;
-      freteMetodo = _savedFrete.metodo;
-      // Reativa visualmente a opção anteriormente selecionada
-      document.querySelectorAll('.frete-opt').forEach(el => el.classList.remove('selected'));
-      const fo = document.getElementById('fo-' + freteMetodo);
-      if (fo) fo.classList.add('selected');
-      _savedFrete = null;
-    } else {
-      freteValor = 0; freteMetodo = '';
-    }
-    const el = document.getElementById('frete-gratis');
-    el.textContent = '🎉 Frete grátis para pedidos acima de R$ 3.000!';
-    el.classList.remove('show');
-    document.getElementById('frete-metodos').style.display = '';
-  }
+  // Esconde badges de benefícios
+  const badge    = document.getElementById('cupom-parc-badge');
+  const gratisEl = document.getElementById('frete-gratis');
+  if (badge) badge.style.display = 'none';
+  if (gratisEl) gratisEl.style.display = 'none';
+  // Recalcula frete (volta ao valor cheio se era grátis pelo cupom)
+  if (freteEstado && freteMetodo) selecionarFrete(freteMetodo);
+  // Recalcula parcela (sem desconto, valor sobe)
+  if (selectedPayment === 'Cartão de Crédito') calcInstallment();
   buildReview();
+}
+
+function checkCupomExtras() {
+  const badge    = document.getElementById('cupom-parc-badge');
+  const gratisEl = document.getElementById('frete-gratis');
+  if (badge) badge.style.display = cupomData?.parcelamento === 'SIM' ? 'block' : 'none';
+  if (cupomData?.frete_gratis_acima) {
+    const limiar = parseFloat(cupomData.frete_gratis_acima);
+    if (!isNaN(limiar)) {
+      gratisEl.textContent = `🎉 Cupom: frete grátis para pedidos acima de R$ ${limiar.toLocaleString('pt-BR',{minimumFractionDigits:2})}!`;
+      gratisEl.style.display = 'block';
+    }
+    if (freteEstado) selecionarFrete(freteMetodo || 'jadlog');
+  }
+  if (cupomData?.parcelamento === 'SIM') calcInstallment();
 }
 
 function calcularDescontoCupom() {
   if (!cupomAplicado || !cupomData) return 0;
   if (cupomData.tipo === '%') {
     if (cupomData.produtos === 'todos') {
-      return getTotal() * (cupomData.valor / 100);
+      return (getTotal() + freteValor) * (cupomData.valor / 100);
     }
     let base = 0;
     const prods = Array.isArray(cupomData.produtos) ? cupomData.produtos : [];
     Object.entries(cart).forEach(([id, qty]) => {
       const baseId = id.split('__')[0];
-      if (prods.includes(id) || prods.includes(baseId)) base += getProductPrice(id) * qty;
+      if (prods.includes(id) || prods.includes(baseId)) base += getPriceByKey(id) * qty;
     });
     return base * (cupomData.valor / 100);
   }
@@ -324,7 +389,7 @@ function calcularDescontoCupom() {
                    : precos[baseId] !== undefined ? precos[baseId]
                    : null;
       if (discP !== null) {
-        desc += Math.max(0, getProductPrice(id) - discP) * qty;
+        desc += Math.max(0, getPriceByKey(id) - discP) * qty;
       }
     });
     return desc;
@@ -429,26 +494,21 @@ function getVariantLabel(key) {
 function getVariantStock(id) {
   const p = CATALOG.find(x => x.id === id);
   if (!p || !p.variantes) return p ? p.stock : 0;
+  // Retorna o maior estoque entre as variantes (card só desativado se TODAS estiverem sem estoque)
   return Math.max(...p.variantes.map(v => parseInt(v.estoque) || 0));
 }
 
 function changeVariantQty(id, varIdx, delta) {
   const key = `${id}__${varIdx}`;
-  const p = CATALOG.find(x => x.id === id);
-  const maxStock = p && p.variantes && p.variantes[varIdx] ? parseInt(p.variantes[varIdx].estoque) || 999 : 999;
-  const newQty = Math.max(0, Math.min(maxStock, (cart[key] || 0) + delta));
+  const p   = CATALOG.find(x => x.id === id);
+  // Estoque é informativo (label visual), não bloqueia compra — pedidos
+  // sem estoque suficiente entram como pré-venda ("chega em 7 dias").
+  // Cap de 999 só pra não travar o navegador com valores absurdos.
+  const newQty = Math.max(0, Math.min(999, (cart[key] || 0) + delta));
   if (newQty === 0) delete cart[key]; else cart[key] = newQty;
 
   const qtyEl = document.getElementById(`vqty-${id}-${varIdx}`);
   if (qtyEl) qtyEl.textContent = newQty;
-
-  const card = document.getElementById(`pc-${id}`);
-  if (card) {
-    const anySelected = p.variantes.some((_, i) => cart[`${id}__${i}`] > 0);
-    card.classList.toggle('selected', anySelected);
-    const check = card.querySelector('.pc-check');
-    if (check) check.textContent = anySelected ? '✓' : '';
-  }
 
   const subEl = document.getElementById(`vsub-${id}-${varIdx}`);
   if (subEl) {
@@ -456,6 +516,13 @@ function changeVariantQty(id, varIdx, delta) {
     subEl.textContent = newQty > 0 ? `= R$ ${(price * newQty).toLocaleString('pt-BR', {minimumFractionDigits:2})}` : '';
   }
 
+  const hasAny = p && Array.isArray(p.variantes) && p.variantes.some((_, i) => (cart[`${id}__${i}`] || 0) > 0);
+  const cardEl = document.getElementById(`pc-${id}`);
+  if (cardEl) {
+    cardEl.classList.toggle('selected', hasAny);
+    const chk = cardEl.querySelector('.pc-check');
+    if (chk) chk.textContent = hasAny ? '✓' : '';
+  }
   updateTotal();
 }
 
@@ -465,7 +532,7 @@ function renderProducts() {
   const searching = !!activeSearch;
   ['section-destaque','section-recomendado','catalog-divider'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.style.display = searching ? 'none' : (id === 'catalog-divider' ? '' : '');
+    if (el) el.style.display = searching ? 'none' : '';
   });
   if (!searching) renderHighlights();
 
@@ -494,28 +561,30 @@ function renderProducts() {
   }
 
   list.forEach(p => {
+    const varIdx = selectedVariants[p.id] || 0;
     const currentPrice = getProductPrice(p.id);
     const qty = cart[p.id] || 1;
     const isSelected = cart.hasOwnProperty(p.id);
     const subtotal = isSelected ? (currentPrice * qty).toLocaleString('pt-BR', {minimumFractionDigits:2}) : '0,00';
-    const temVariantes = p.variantes && p.variantes.length > 0;
-    const stockAtual = temVariantes ? getVariantStock(p.id) : p.stock;
+    const stockAtual = p.variantes ? getVariantStock(p.id) : p.stock;
     const semEstoque = stockAtual === 0;
     const estoqueLabel = semEstoque
       ? `<span style="color:#f39c12;font-size:.7rem;font-weight:700">🕐 Sem estoque — chega em até 7 dias</span>`
       : stockAtual <= 10
         ? `<span style="color:#f39c12;font-size:.7rem">⚡ Últimas ${stockAtual} un.</span>`
         : `<span style="color:var(--accent);font-size:.7rem">✅ ${stockAtual} em estoque</span>`;
-    const labBadge = p.lab ? `<span class="pc-tag" style="background:rgba(26,188,156,.15);border-color:rgba(26,188,156,.3);color:var(--accent)">${p.lab}</span>` : '';
+    const labBadge = p.lab ? `<span class="pc-tag" style="background:rgba(26,188,156,.15);border-color:rgba(26,188,156,.3);color:var(--accent)">${esc(p.lab)}</span>` : '';
     const promoAtiva = isPromoAtiva(p);
     const promoRibbon = promoAtiva ? `<div class="promo-ribbon">🔥 Promoção</div>` : '';
     const promoTimer  = promoAtiva ? `
-      <div class="promo-timer">⏱ Termina em: <span id="countdown-${p.id}">${getCountdown(p.promo_fim)}</span></div>` : '';
+      <div class="promo-timer">⏱ Termina em: <span id="countdown-${escAttr(p.id)}">${getCountdown(p.promo_fim)}</span></div>` : '';
     const promoPrecoHtml = promoAtiva ? `
       <span class="promo-price-old">R$ ${p.price.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>` : '';
     const temProtocolo = PROTOCOLS && PROTOCOLS[p.id];
-    const saibaMaisBtn = temProtocolo ? `<button class="btn-saiba-mais" onclick="event.stopPropagation(); abrirProtocolo('${p.id}')">📋 Saiba mais sobre este produto</button>` : '';
+    const saibaMaisBtn = temProtocolo ? `<button class="btn-saiba-mais" onclick="event.stopPropagation(); abrirProtocolo('${escAttr(p.id)}')">📋 Saiba mais sobre este produto</button>` : '';
+    const temVariantes = p.variantes && p.variantes.length > 0;
 
+    // Produtos COM variantes: cada dose tem sua própria linha com [− qty +]
     const variantRowsHtml = temVariantes ? `
       <div class="variant-rows">
         ${p.variantes.map((v, i) => {
@@ -526,7 +595,7 @@ function renderProducts() {
           const vStock = parseInt(v.estoque) || 0;
           const semV = vStock === 0;
           const vStockLabel = semV
-            ? `<span class="vr-stock" style="color:#f39c12;font-size:.68rem">🕐 Chega em 7 dias</span>`
+            ? `<span class="vr-stock out">⚠️ Sem estoque</span>`
             : vStock <= 5
               ? `<span class="vr-stock low">⚡ ${vStock} un.</span>`
               : `<span class="vr-stock ok">✅ ${vStock} un.</span>`;
@@ -536,53 +605,59 @@ function renderProducts() {
             ? `<span class="vr-price-old">R$ ${vPrice.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
                <span class="vr-price promo">R$ ${vPromo.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>`
             : `<span class="vr-price">R$ ${vPrice.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>`;
+          const vStockLabel2 = semV
+            ? `<span class="vr-stock" style="color:#f39c12;font-size:.68rem">🕐 Chega em 7 dias</span>`
+            : vStockLabel;
           return `<div class="variant-row">
             <div class="vr-info">
-              <span class="vr-dose">${v.dose}</span>
-              <div class="vr-price-row">${vPromoHtml}${vStockLabel}</div>
+              <span class="vr-dose">${esc(v.dose)}</span>
+              <div class="vr-price-row">${vPromoHtml}${vStockLabel2}</div>
             </div>
             <div class="vr-controls">
-              <button class="vr-btn" onclick="event.stopPropagation(); changeVariantQty('${p.id}',${i},-1)">−</button>
-              <span class="vr-qty" id="vqty-${p.id}-${i}">${vQty}</span>
-              <button class="vr-btn" onclick="event.stopPropagation(); changeVariantQty('${p.id}',${i},1)">+</button>
+              <button class="vr-btn" onclick="event.stopPropagation(); changeVariantQty('${escAttr(p.id)}',${i},-1)">−</button>
+              <span class="vr-qty" id="vqty-${escAttr(p.id)}-${i}">${vQty}</span>
+              <button class="vr-btn" onclick="event.stopPropagation(); changeVariantQty('${escAttr(p.id)}',${i},1)">+</button>
             </div>
-            <span class="vr-sub" id="vsub-${p.id}-${i}">${vQty > 0 ? `= R$ ${(vPriceDisc*vQty).toLocaleString('pt-BR',{minimumFractionDigits:2})}` : ''}</span>
+            <span class="vr-sub" id="vsub-${escAttr(p.id)}-${i}">${vQty > 0 ? `= R$ ${(vPriceDisc*vQty).toLocaleString('pt-BR',{minimumFractionDigits:2})}` : ''}</span>
           </div>`;
         }).join('')}
       </div>` : '';
 
+    // Produtos SEM variantes: comportamento original. Estoque 0 = pré-venda
+    // (libera compra com aviso "chega em 7 dias" — não bloqueia).
+    const qtyMax = p.stock > 0 ? p.stock : 999;
     const qtyWrapHtml = !temVariantes ? `
-        <div class="pc-qty-wrap" id="qty-wrap-${p.id}">
-          <button class="qty-btn" onclick="event.stopPropagation(); changeQty('${p.id}',-1)">−</button>
-          <input class="qty-input" type="number" id="qty-${p.id}" value="${qty}" min="1" max="${p.stock}"
-            onchange="event.stopPropagation(); setQty('${p.id}', this.value)"
+        <div class="pc-qty-wrap" id="qty-wrap-${escAttr(p.id)}">
+          <button class="qty-btn" onclick="event.stopPropagation(); changeQty('${escAttr(p.id)}',-1)">−</button>
+          <input class="qty-input" type="number" id="qty-${escAttr(p.id)}" value="${qty}" min="1" max="${qtyMax}"
+            onchange="event.stopPropagation(); setQty('${escAttr(p.id)}', this.value)"
             onclick="event.stopPropagation()"/>
-          <button class="qty-btn" onclick="event.stopPropagation(); changeQty('${p.id}',1)">+</button>
+          <button class="qty-btn" onclick="event.stopPropagation(); changeQty('${escAttr(p.id)}',1)">+</button>
           <span class="qty-label">un.</span>
-          <span class="pc-subtotal" id="sub-${p.id}">= R$ ${subtotal}</span>
+          <span class="pc-subtotal" id="sub-${escAttr(p.id)}">= R$ ${subtotal}</span>
         </div>` : '';
 
-    const cardOnclick = temVariantes ? '' : `toggleProduct('${p.id}')`;
+    const cardOnclick = temVariantes ? '' : `toggleProduct('${escAttr(p.id)}')`;
     const cardSelected = temVariantes
       ? p.variantes.some((_, i) => (cart[`${p.id}__${i}`] || 0) > 0)
       : isSelected;
 
     grid.innerHTML += `
       <div class="product-card ${cardSelected ? 'selected' : ''} ${promoAtiva ? 'promo-ativa' : ''}"
-           id="pc-${p.id}" onclick="${cardOnclick}"
+           id="pc-${escAttr(p.id)}" onclick="${cardOnclick}"
            style="">
         ${promoRibbon}
         <div class="pc-header">
-          <span class="pc-icon">${p.icon}</span>
+          <span class="pc-icon">${esc(p.icon)}</span>
           <div class="pc-check">${cardSelected ? '✓' : ''}</div>
         </div>
-        <div class="pc-name">${p.name}</div>
-        <div class="pc-conc">${p.conc}</div>
-        <div class="pc-tags">${labBadge}${(p.tags||[]).map(t=>`<span class="pc-tag">${t}</span>`).join('')}</div>
-        ${!temVariantes ? `<div style="margin:6px 0" id="stock-${p.id}">${estoqueLabel}</div>` : ''}
+        <div class="pc-name">${esc(p.name)}</div>
+        <div class="pc-conc">${esc(p.conc)}</div>
+        <div class="pc-tags">${labBadge}${(p.tags||[]).map(t=>`<span class="pc-tag">${esc(t)}</span>`).join('')}</div>
+        ${!temVariantes ? `<div style="margin:6px 0" id="stock-${escAttr(p.id)}">${estoqueLabel}</div>` : ''}
         ${!temVariantes ? `<div class="pc-price-row" style="flex-direction:column;align-items:flex-start;gap:2px">
           ${promoPrecoHtml}<div style="display:flex;align-items:baseline;gap:4px">
-          <span class="pc-price" id="price-${p.id}" style="${promoAtiva?'color:#F39C12':''}">R$ ${currentPrice.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+          <span class="pc-price" id="price-${escAttr(p.id)}" style="${promoAtiva?'color:#F39C12':''}">R$ ${currentPrice.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
           <span class="pc-unit">/ unidade</span></div></div>` : ''}
         ${promoTimer}
         ${variantRowsHtml}
@@ -605,15 +680,11 @@ function renderHighlights() {
   divider.style.display  = (destaques.length || recomendados.length) ? '' : 'none';
   function buildTile(p, badgeClass, badgeLabel, cardClass) {
     const temVariantes = p.variantes && p.variantes.length > 0;
-
-    // Para variantes: pega o menor preço real entre as variantes
-    // Para produto simples: usa getEffectivePrice normalmente
-    let priceDisplay, promoRibbon = '', promoClass = '', priceHtml;
+    let promoRibbon = '', promoClass = '', priceHtml;
 
     if (temVariantes) {
       const precos = p.variantes.map(v => parseFloat(v.preco) || 0).filter(v => v > 0);
       const minPreco = precos.length ? Math.min(...precos) : 0;
-      // Verifica se alguma variante tem promo_preco
       const varPromos = p.variantes.filter(v => parseFloat(v.promo_preco) > 0 && isPromoDentroData(p));
       if (varPromos.length > 0) {
         const minPromo = Math.min(...varPromos.map(v => parseFloat(v.promo_preco)));
@@ -624,7 +695,7 @@ function renderHighlights() {
            <span style="font-size:.65rem;color:var(--gray)">A partir de</span>
            <span style="font-size:.7rem;color:var(--gray);text-decoration:line-through">R$ ${varOriginal.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
            <span class="hl-card-price" style="color:#F59E0B">R$ ${minPromo.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
-           <span id="hl-countdown-${p.id}" style="font-size:.63rem;color:#F59E0B;font-weight:600">⏱ ${getCountdown(p.promo_fim)}</span>
+           <span id="hl-countdown-${escAttr(p.id)}" style="font-size:.63rem;color:#F59E0B;font-weight:600">⏱ ${getCountdown(p.promo_fim)}</span>
          </div>`;
       } else {
         priceHtml = `<div style="margin-top:4px">
@@ -641,16 +712,16 @@ function renderHighlights() {
         ? `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;margin-top:4px">
              <span style="font-size:.7rem;color:var(--gray);text-decoration:line-through">R$ ${p.price.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
              <span class="hl-card-price" style="color:#F59E0B">R$ ${price.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
-             <span id="hl-countdown-${p.id}" style="font-size:.63rem;color:#F59E0B;font-weight:600">⏱ ${getCountdown(p.promo_fim)}</span>
+             <span id="hl-countdown-${escAttr(p.id)}" style="font-size:.63rem;color:#F59E0B;font-weight:600">⏱ ${getCountdown(p.promo_fim)}</span>
            </div>`
         : `<div class="hl-card-price">R$ ${price.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>`;
     }
-    return `<div class="hl-card ${cardClass} ${promoClass}" onclick="scrollToCard('${p.id}')">
+    return `<div class="hl-card ${cardClass} ${promoClass}" onclick="scrollToCard('${escAttr(p.id)}')">
       ${promoRibbon}
       <span class="${badgeClass}">${badgeLabel}</span>
-      <span class="hl-card-icon">${p.icon}</span>
-      <div class="hl-card-name">${p.name}</div>
-      <div class="hl-card-conc">${p.conc}</div>
+      <span class="hl-card-icon">${esc(p.icon)}</span>
+      <div class="hl-card-name">${esc(p.name)}</div>
+      <div class="hl-card-conc">${esc(p.conc)}</div>
       ${priceHtml}
       <div class="hl-card-hint">Toque para ver no catálogo →</div>
     </div>`;
@@ -676,6 +747,7 @@ function toggleProduct(id) {
     cart[id] = 1;
   }
   renderProducts();
+  updateTotal(); // revalida cupom de frete grátis ao adicionar/remover produto
 }
 
 function changeQty(id, delta) {
@@ -706,28 +778,7 @@ function updateTotal() {
   });
   document.getElementById('total-display').textContent = total.toLocaleString('pt-BR', {minimumFractionDigits:2});
   document.getElementById('items-count').textContent = `${count} produto(s) · ${Object.keys(cart).length} tipo(s)`;
-  if (cupomAplicado && cupomData?.frete_gratis_acima > 0 && freteEstado) {
-    const limiar = cupomData.frete_gratis_acima;
-    const elGratis = document.getElementById('frete-gratis');
-    const elMetodos = document.getElementById('frete-metodos');
-    if (getTotal() >= limiar) {
-      if (freteMetodo !== 'gratis-cupom') {
-        _savedFrete = { valor: freteValor, metodo: freteMetodo };
-        freteValor = 0; freteMetodo = 'gratis-cupom';
-        if (elGratis) { elGratis.textContent = `🎁 Frete grátis pelo cupom!`; elGratis.classList.add('show'); }
-        if (elMetodos) elMetodos.style.display = 'none';
-      }
-    } else if (freteMetodo === 'gratis-cupom') {
-      freteValor  = _savedFrete ? _savedFrete.valor : 0;
-      freteMetodo = _savedFrete ? _savedFrete.metodo : '';
-      _savedFrete = null;
-      if (elGratis) elGratis.classList.remove('show');
-      if (elMetodos) elMetodos.style.display = '';
-      document.querySelectorAll('.frete-opt').forEach(e => e.classList.remove('selected'));
-      const fo = document.getElementById('fo-' + freteMetodo);
-      if (fo) fo.classList.add('selected');
-    }
-  }
+  if (cupomData?.frete_gratis_acima && freteEstado) selecionarFrete(freteMetodo || 'jadlog');
   if (selectedPayment === 'Cartão de Crédito') calcInstallment();
 }
 
@@ -737,9 +788,9 @@ function getTotal() {
   return total;
 }
 
-// ─── ENDEREÇO (ViaCEP auto-fill) ─────────────────────────────────────────────
+// ─── ENDEREÇO — CEP AUTO-FILL + COMPOSIÇÃO ───────────────────────────────────
 async function preencherEnderecoViaCEP() {
-  const cep = document.getElementById('f_cep_entrega').value.replace(/\D/g,'');
+  const cep     = document.getElementById('f_cep_entrega').value.replace(/\D/g,'');
   if (cep.length !== 8) return;
   const loading = document.getElementById('cep-end-loading');
   if (loading) loading.style.display = 'block';
@@ -761,12 +812,12 @@ async function preencherEnderecoViaCEP() {
 }
 
 function getEnderecoCompleto() {
-  const cep    = (document.getElementById('f_cep_entrega')?.value || '').trim();
-  const rua    = v('f_rua');
-  const num    = v('f_numero');
+  const cep  = (document.getElementById('f_cep_entrega')?.value || '').trim();
+  const rua  = v('f_rua');
+  const num  = v('f_numero');
   const bairro = v('f_bairro');
-  const comp   = v('f_complemento');
-  const parts  = [rua, num, comp, bairro, cep].filter(Boolean);
+  const comp = v('f_complemento');
+  const parts = [rua, num, comp, bairro, cep].filter(Boolean);
   return parts.join(', ');
 }
 
@@ -801,20 +852,6 @@ async function calcFrete() {
     }
 
     freteEstado = uf;
-
-    // Frete grátis pelo cupom
-    if (cupomAplicado && cupomData?.frete_gratis_acima > 0 && getTotal() >= cupomData.frete_gratis_acima) {
-      _savedFrete = { valor: 0, metodo: '' }; // ainda não havia seleção, salva vazio
-      freteValor  = 0;
-      freteMetodo = 'gratis-cupom';
-      metodos.style.display = 'none';
-      const el = document.getElementById('frete-gratis');
-      el.textContent = `🎁 Frete grátis pelo cupom ${cupomCodigo}!`;
-      el.classList.add('show');
-      buildReview();
-      return;
-    }
-
     metodos.style.display = 'grid';
 
     document.getElementById('fp-sedex').textContent  = `R$ ${tabela.sedex.toFixed(2).replace('.',',')}`;
@@ -844,6 +881,11 @@ function selecionarFrete(metodo) {
   freteMetodo = metodo;
   const tabela = FRETE_TABELA[freteEstado];
   freteValor = tabela ? (tabela[metodo] || 0) : 0;
+  if (cupomData?.frete_gratis_acima) {
+    const limiar = parseFloat(cupomData.frete_gratis_acima);
+    if (!isNaN(limiar) && getTotal() >= limiar) freteValor = 0;
+  }
+  if (selectedPayment === 'Cartão de Crédito') calcInstallment();
 }
 
 // ─── PROTOCOLO MODAL ────────────────────────────────────────────────────────
@@ -870,11 +912,12 @@ function abrirProtocolo(id) {
     .filter(s => s.campo && String(s.campo).trim())
     .map(s => `<div class="proto-section">
       <div class="proto-section-title">${s.titulo}</div>
-      <div class="proto-section-body">${String(s.campo).replace(/\n/g,'<br>')}</div>
+      <div class="proto-section-body">${esc(String(s.campo)).replace(/\n/g,'<br>')}</div>
     </div>`).join('');
 
-  const aviso  = document.getElementById('pm-aviso');
+  // Informativo
   const footer = document.getElementById('pm-info-footer');
+  const aviso  = document.getElementById('pm-aviso');
   if (proto.pagina) {
     aviso.style.display   = 'flex';
     footer.style.display  = 'block';
@@ -893,22 +936,19 @@ function abrirInformativo() {
   let pagina = footer.dataset.pagina;
   if (pagina && !pagina.startsWith('http') && !pagina.includes('/'))
     pagina = 'informativos/' + pagina;
-  if (window.innerWidth < 768) {
-    window.open(pagina, '_blank');
-  } else {
-    document.getElementById('info-iframe').src = pagina;
-    document.getElementById('info-overlay-title').textContent = footer.dataset.titulo || 'Informativo do produto';
-    document.getElementById('info-overlay').classList.add('open');
-  }
+  document.getElementById('info-iframe').src = pagina;
+  document.getElementById('info-overlay-title').textContent = footer.dataset.titulo || 'Informativo do produto';
+  document.getElementById('info-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
 }
 
 function fecharInformativo() {
   document.getElementById('info-overlay').classList.remove('open');
   document.getElementById('info-iframe').src = '';
+  document.body.style.overflow = '';
 }
 
 function getFreteLabel() {
-  if (freteMetodo === 'gratis-cupom') return `🎁 Grátis · cupom ${cupomCodigo}`;
   if (!freteCep) return 'Não calculado';
   const nomes = { sedex: 'SEDEX', pac: 'PAC', jadlog: 'Jadlog' };
   const cepFormatado = freteCep.replace(/^(\d{5})(\d{3})$/, '$1-$2');
@@ -934,9 +974,9 @@ function selectPayment(method) {
 function calcInstallment() {
   const parcelas = parseInt(document.getElementById('f_parcelas').value);
   if (!parcelas) return;
-  const semJurosCupom = cupomAplicado && cupomData?.parcelamento;
   const config = PARCELAS_CONFIG.find(p => p.parcelas === parcelas);
-  let juros = (!semJurosCupom && config) ? config.juros : 0;
+  let juros = config ? config.juros : 0;
+  if (cupomData?.parcelamento === 'SIM' && parcelas <= 3) juros = 0;
   const desconto = cupomAplicado ? calcularDescontoCupom() : 0;
   let total = getTotal() + freteValor - desconto;
   if (total < 0) total = 0;
@@ -949,6 +989,38 @@ function calcInstallment() {
 function goStep(n) {
   // Validações — se falhar em passo anterior, volta para ele e mostra o erro
   if (n > 1 && !validateStep1()) { _aplicarStep(1); return; }
+
+  const sess = (typeof getClienteSession === 'function') ? getClienteSession() : null;
+  const onStep1 = document.getElementById('panel1')?.classList.contains('active');
+
+  // Gate de login obrigatório: ao sair do step 1, exige sessão.
+  if (n >= 2 && !sess) {
+    abrirModalLogin('login', (cliente) => {
+      preencherStep2(cliente);
+      _clienteJaLogado = true;
+      lpSetLogado(cliente.nome || cliente.clinica || '', cliente.apelido || '');
+      const jaTem = document.getElementById('lp-ja-tem-conta');
+      if (jaTem) jaTem.style.display = 'none';
+      _aplicarStep(3); // ← após login, pula step 2 (dados já vieram do cadastro) e vai pra pagamento
+    });
+    return;
+  }
+
+  // Cliente logado: step 2 é transparente. Pula sempre.
+  //   • Avançando de 1 → 2:  vai direto pra 3 (pagamento)
+  //   • Voltando de 3 → 2:   volta pra 1 (produtos)
+  // Pra editar dados, cliente vai em perfil.html.
+  if (n === 2 && sess && _clienteJaLogado) {
+    const onStep3 = document.getElementById('panel3')?.classList.contains('active');
+    if (onStep3) {
+      _aplicarStep(1);
+    } else {
+      preencherStep2(sess);
+      _aplicarStep(3);
+    }
+    return;
+  }
+
   if (n > 2 && !validateStep2()) { _aplicarStep(2); return; }
   if (n > 3 && !validateStep3()) { return; }
 
@@ -963,8 +1035,23 @@ function goStep(n) {
   }
 }
 
+// ─── PRE-FILL STEP 2 com dados da sessão de cliente ─────────────────────────
+function preencherStep2(cliente) {
+  if (!cliente) return;
+  const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+  set('f_clinica',     cliente.nome || cliente.clinica || '');
+  set('f_responsavel', cliente.apelido || cliente.responsavel || '');
+  set('f_telefone',    cliente.telefone);
+  set('f_email',       cliente.email);
+  set('f_documento',   cliente.cpf || cliente.documento || '');
+  set('f_cidade',      cliente.cidade);
+  set('f_estado',      cliente.estado);
+  // O endereço vem como string composta — coloca em f_rua p/ o cliente revisar
+  if (cliente.endereco) set('f_rua', cliente.endereco);
+}
+
 async function _goStep3() {
-  const btn = document.querySelector('#panel2 .btn-next');
+  const btn     = document.querySelector('#panel2 .btn-next');
   const alertEl = document.getElementById('alert2');
   alertEl.classList.remove('show');
 
@@ -974,7 +1061,7 @@ async function _goStep3() {
     return;
   }
 
-  const cpfLimpo = v('f_documento').replace(/\D/g,'');
+  const docLimpo = v('f_documento').replace(/\D/g,'');
   btn.disabled = true;
   btn.textContent = '⏳ Verificando...';
 
@@ -985,7 +1072,7 @@ async function _goStep3() {
       responsavel: v('f_responsavel'),
       telefone:    v('f_telefone'),
       email:       v('f_email'),
-      cpf:         cpfLimpo,
+      cpf:         docLimpo,
       cidade:      v('f_cidade'),
       estado:      v('f_estado'),
       endereco:    getEnderecoCompleto()
@@ -998,7 +1085,7 @@ async function _goStep3() {
 
     if (!data.ok) {
       const msgs = {
-        cpf:      '⚠️ Este CPF já está cadastrado. Use "Já sou cadastrado" para entrar.',
+        cpf:      '⚠️ Este CPF/CNPJ já está cadastrado. Use "Já sou cadastrado" para entrar.',
         email:    '⚠️ Este e-mail já está cadastrado. Use "Já sou cadastrado" para entrar.',
         telefone: '⚠️ Este telefone já está cadastrado. Use "Já sou cadastrado" para entrar.',
       };
@@ -1009,11 +1096,12 @@ async function _goStep3() {
       return;
     }
   } catch(e) {
-    // erro de rede ou timeout: avança mesmo assim (não bloqueia pedido por falha de rede)
+    // erro de rede ou timeout: avança mesmo assim
   }
 
   btn.disabled = false;
   btn.textContent = 'Continuar para Pagamento →';
+  _clienteJaLogado = true;
   lpSetLogado(v('f_clinica'), v('f_responsavel'));
   document.getElementById('lp-ja-tem-conta').style.display = 'none';
   _aplicarStep(3);
@@ -1062,7 +1150,6 @@ function validateStep2() {
     if (!el || !el.value.trim()) { if (el) el.classList.add('error'); ok = false; }
     else el.classList.remove('error');
   });
-  // Limpar erros dos campos não-obrigatórios neste contexto
   if (_clienteJaLogado) {
     enderecoFields.forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('error'); });
   }
@@ -1080,21 +1167,19 @@ function validateStep3() {
 
 // ─── BUILD REVIEW ───────────────────────────────────────────────────────────
 function buildReview() {
-  if (selectedPayment === 'Cartão de Crédito') calcInstallment();
   // Dados
   const dados = [
-    ['Clínica', v('f_clinica')],
-    ['Responsável', v('f_responsavel')],
-    ['Cargo', v('f_cargo') || '—'],
+    ['Nome', v('f_clinica')],
+    ['Apelido', v('f_responsavel')],
     ['Telefone', v('f_telefone')],
     ['E-mail', v('f_email')],
     ['Documento', v('f_documento') || '—'],
-    ['Cidade', `${v('f_cidade')} ${v('f_estado')}`],
+    ['Cidade', `${v('f_cidade')} — ${v('f_estado')}`],
     ['Endereço', getEnderecoCompleto() || '—'],
     ['Observações', v('f_obs') || '—'],
   ];
   document.getElementById('review-dados').innerHTML =
-    dados.map(([l,val]) => `<div class="rc-row"><span class="lbl">${l}</span><span class="val">${val}</span></div>`).join('');
+    dados.map(([l,val]) => `<div class="rc-row"><span class="lbl">${l}</span><span class="val">${esc(val)}</span></div>`).join('');
 
   // Produtos
   let html = '';
@@ -1124,13 +1209,13 @@ function buildReview() {
       } else if (cupomData.tipo === '%') {
         const prods = Array.isArray(cupomData.produtos) ? cupomData.produtos : null;
         if (!prods || prods.includes(key) || prods.includes(baseId)) {
-          cupomHtml = `<div style="font-size:.72rem;color:var(--accent);margin-top:1px">🎟️ Cupom: −${cupomData.valor}%</div>`;
+          cupomHtml = `<div style="font-size:.72rem;color:var(--accent);margin-top:1px">🎟️ Cupom: −${esc(cupomData.valor)}%</div>`;
         }
       }
     }
 
     html += `<div class="rp-item">
-      <div><div class="rp-name">${p.icon} ${p.name}</div><div class="rp-detail">${varLabel}</div>${cupomHtml}</div>
+      <div><div class="rp-name">${esc(p.icon)} ${esc(p.name)}</div><div class="rp-detail">${esc(varLabel)}</div>${cupomHtml}</div>
       <div><div style="text-align:right; font-size:.8rem; color:var(--gray)">${qty} × R$${price.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
       <div class="rp-total">R$ ${sub.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div></div>
     </div>`;
@@ -1138,61 +1223,79 @@ function buildReview() {
   document.getElementById('review-products').innerHTML = html;
 
   // Pagamento
-  let pagInfo = `<div class="rc-row"><span class="lbl">Forma</span><span class="val">${selectedPayment}</span></div>`;
+  let pagInfo = `<div class="rc-row"><span class="lbl">Forma</span><span class="val">${esc(selectedPayment)}</span></div>`;
   if (selectedPayment === 'Cartão de Crédito') {
     const parc = document.getElementById('f_parcelas').value;
-    const val  = document.getElementById('f_parcela_val').value;
-    const parcExtra = (cupomAplicado && cupomData?.parcelamento)
-      ? ` <span style="font-size:.72rem;color:var(--accent)">(sem juros · cupom ${cupomCodigo})</span>` : '';
-    pagInfo += `<div class="rc-row"><span class="lbl">Parcelamento</span><span class="val">${parc}x de ${val}${parcExtra}</span></div>`;
+    const val = document.getElementById('f_parcela_val').value;
+    const semJuros = cupomData?.parcelamento === 'SIM' && parseInt(parc) <= 3 ? ' — sem juros (cupom)' : '';
+    pagInfo += `<div class="rc-row"><span class="lbl">Parcelamento</span><span class="val">${esc(parc)}x de ${esc(val)}${semJuros}</span></div>`;
   }
   if (v('f_obs_pag')) {
-    pagInfo += `<div class="rc-row"><span class="lbl">Obs. pagamento</span><span class="val">${v('f_obs_pag')}</span></div>`;
+    pagInfo += `<div class="rc-row"><span class="lbl">Obs. pagamento</span><span class="val">${esc(v('f_obs_pag'))}</span></div>`;
   }
 
   // Frete
-  let pagFrete = `<div class="rc-row"><span class="lbl">Frete</span><span class="val">${getFreteLabel()}</span></div>`;
+  let freteLabel = getFreteLabel();
+  // Só anota "Grátis (cupom)" se o frete FOI calculado (freteEstado/freteCep preenchidos).
+  // Quando ainda não calculou, freteValor=0 mas isso não é "grátis" — é "não calculado".
+  if (cupomData?.frete_gratis_acima && freteEstado) {
+    const limiar = parseFloat(cupomData.frete_gratis_acima);
+    if (!isNaN(limiar)) {
+      if (freteValor === 0 && getTotal() >= limiar) {
+        freteLabel += ` <span style="color:var(--green);font-size:.78rem">🎉 Grátis (cupom)</span>`;
+      } else {
+        const falta = limiar - getTotal();
+        if (falta > 0) freteLabel += ` <span style="color:var(--accent);font-size:.78rem">🎟️ Adicione R$ ${falta.toLocaleString('pt-BR',{minimumFractionDigits:2})} para frete grátis</span>`;
+      }
+    }
+  }
+  let pagFrete = `<div class="rc-row"><span class="lbl">Frete</span><span class="val">${freteLabel}</span></div>`;
   document.getElementById('review-payment').innerHTML = pagInfo + pagFrete;
 
   // Total com frete
   total += freteValor;
   if (selectedPayment === 'Cartão de Crédito') {
-    const parc = parseInt(document.getElementById('f_parcelas').value);
-    if (parc > 3) total *= 1.05;
+    const parc   = parseInt(document.getElementById('f_parcelas').value);
+    const config = PARCELAS_CONFIG.find(p => p.parcelas === parc);
+    let juros  = config ? config.juros : 0;
+    if (cupomData?.parcelamento === 'SIM' && parc <= 3) juros = 0;
+    if (juros > 0) total *= (1 + juros / 100);
   }
 
   // Total box
   const subtotalBruto = getTotal();
   const totalFinal    = getFinalTotal();
   const descontoValor = cupomAplicado ? calcularDescontoCupom() : 0;
-  const descontoLabel = cupomData?.tipo === 'fixo'
-    ? `Preço especial — ${cupomCodigo}`
-    : `${(cupomData?.valor||0).toFixed(0)}% — ${cupomCodigo}`;
-  const descontoHtml  = cupomAplicado && descontoValor > 0 ? `
+  const descontoLabel = cupomAplicado && cupomData
+    ? (cupomData.tipo === '%' ? `${cupomData.valor}%` : 'Preço especial')
+    : '';
+  const descontoHtml  = cupomAplicado ? `
     <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:.85rem;color:var(--accent);font-weight:700">
-      <span>🎟️ Desconto (${descontoLabel})</span>
+      <span>🎟️ Desconto (${esc(descontoLabel)} — ${esc(cupomCodigo)})</span>
       <span>− R$ ${descontoValor.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
     </div>` : '';
   const beneficiosReviewHtml = (() => {
     if (!cupomAplicado || !cupomData) return '';
     const items = [];
-    if (cupomData.parcelamento && selectedPayment === 'Cartão de Crédito') {
+    if (cupomData.parcelamento === 'SIM' && selectedPayment === 'Cartão de Crédito') {
       const parc = parseInt(document.getElementById('f_parcelas').value) || 1;
       if (parc <= 3) {
         const origConf  = PARCELAS_CONFIG.find(p => p.parcelas === parc);
         const jurosOrig = origConf ? origConf.juros : 0;
-        const base      = getTotal() - (cupomAplicado ? calcularDescontoCupom() : 0);
+        const base      = getTotal() - descontoValor;
         const econJuros = jurosOrig > 0
           ? ` <span style="opacity:.85">· economia de R$ ${(base * jurosOrig / 100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} em juros</span>`
           : '';
-        items.push(`⚡ Parcelamento sem juros (${parc}×)${econJuros} · cupom <strong>${cupomCodigo}</strong>`);
+        items.push(`⚡ Parcelamento sem juros (${parc}×)${econJuros} · cupom <strong>${esc(cupomCodigo)}</strong>`);
       }
     }
-    if (freteMetodo === 'gratis-cupom') {
-      const econFrete = _savedFrete?.valor > 0
-        ? ` <span style="opacity:.85">· economia de R$ ${_savedFrete.valor.toFixed(2).replace('.',',')}</span>`
+    if (cupomData.frete_gratis_acima && freteValor === 0 && freteEstado && freteMetodo) {
+      const tabela       = FRETE_TABELA[freteEstado];
+      const freteOriginal = tabela ? (tabela[freteMetodo] || 0) : 0;
+      const econFrete    = freteOriginal > 0
+        ? ` <span style="opacity:.85">· economia de R$ ${freteOriginal.toFixed(2).replace('.',',')}</span>`
         : '';
-      items.push(`🚚 Frete grátis${econFrete} · cupom <strong>${cupomCodigo}</strong>`);
+      items.push(`🚚 Frete grátis${econFrete} · cupom <strong>${esc(cupomCodigo)}</strong>`);
     }
     if (!items.length) return '';
     return items.map(i =>
@@ -1211,32 +1314,47 @@ function buildReview() {
     <div style="border-top:1px solid rgba(255,255,255,.15);margin:10px 0"></div>
     <div class="rtb-label">Total do Pedido</div>
     <div class="rtb-amount">R$ ${totalFinal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-    <div class="rtb-method">${selectedPayment}</div>`;
-
+    <div class="rtb-method">${esc(selectedPayment)}</div>`;
   renderRecomendacoesRevisao();
 }
 
 function v(id) { return document.getElementById(id)?.value?.trim() || ''; }
 
 // ─── WHATSAPP ────────────────────────────────────────────────────────────────
-function sendWhatsApp() {
+let _sendingPedido = false;
+async function sendWhatsApp() {
+  // Trava contra múltiplos cliques: enquanto o request está em voo,
+  // ignora cliques adicionais. Reativa só após sucesso/erro.
+  if (_sendingPedido) return;
+  _sendingPedido = true;
+  const btnWA = document.querySelector('.btn-wa');
+  let _btnHtmlOrig = '';
+  if (btnWA) {
+    _btnHtmlOrig = btnWA.innerHTML;
+    btnWA.disabled = true;
+    btnWA.style.opacity = '.6';
+    btnWA.style.cursor = 'wait';
+    btnWA.innerHTML = '<span style="display:inline-flex;align-items:center;gap:8px">⏳ Enviando pedido...</span>';
+  }
+
   const total = getFinalTotal();
 
-  let msg = `🧬 *PEDIDO PHARMAFIT-PY*\n`;
+  const _clientName = (typeof CLIENT !== 'undefined' && CLIENT.name) ? CLIENT.name.toUpperCase() : 'PEDIDO';
+  let msg = `📦 *PEDIDO ${_clientName}*\n`;
   msg += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
-  msg += `📋 *DADOS DA CLÍNICA*\n`;
-  msg += `Clínica: ${v('f_clinica')}\n`;
-  msg += `Responsável: ${v('f_responsavel')}\n`;
-  if (v('f_cargo')) msg += `Cargo: ${v('f_cargo')}\n`;
+  msg += `📋 *DADOS DO CLIENTE*\n`;
+  msg += `Nome: ${v('f_clinica')}\n`;
+  msg += `Apelido: ${v('f_responsavel')}\n`;
   msg += `Telefone: ${v('f_telefone')}\n`;
   msg += `E-mail: ${v('f_email')}\n`;
   if (v('f_documento')) msg += `Documento: ${v('f_documento')}\n`;
   if (v('f_cidade')) msg += `Cidade/Estado: ${v('f_cidade')} — ${v('f_estado')}\n`;
-  const endCompleto = getEnderecoCompleto(); if (endCompleto) msg += `Endereço: ${endCompleto}\n`;
+  const endCompleto = getEnderecoCompleto();
+  if (endCompleto) msg += `Endereço: ${endCompleto}\n`;
   if (v('f_obs')) msg += `Obs: ${v('f_obs')}\n`;
 
-  msg += `\n💊 *PRODUTOS SOLICITADOS*\n`;
+  msg += `\n📦 *PRODUTOS SOLICITADOS*\n`;
   Object.keys(cart).forEach(key => {
     const { id } = parseCartKey(key);
     const p = CATALOG.find(x => x.id === id);
@@ -1255,22 +1373,22 @@ function sendWhatsApp() {
   if (selectedPayment === 'Cartão de Crédito') {
     const parc = document.getElementById('f_parcelas').value;
     const val = document.getElementById('f_parcela_val').value;
-    msg += `Parcelamento: ${parc}x de ${val}\n`;
+    const semJurosSuffix = cupomData?.parcelamento === 'SIM' && parseInt(parc) <= 3 ? ' (sem juros — cupom)' : '';
+    msg += `Parcelamento: ${parc}x de ${val}${semJurosSuffix}\n`;
   }
+  if (cupomData?.parcelamento === 'SIM') msg += `⚡ Benefício: parcelas 1× a 3× sem juros (cupom)\n`;
   if (v('f_obs_pag')) msg += `Obs. pagamento: ${v('f_obs_pag')}\n`;
 
   msg += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
   msg += `📦 Frete: ${freteValor === 0 ? 'GRÁTIS' : 'R$ ' + freteValor.toFixed(2).replace('.',',')}\n`;
   if (cupomAplicado) {
-    const desc   = calcularDescontoCupom();
-    const dLabel = cupomData?.tipo === 'fixo'
-      ? `Preço especial — ${cupomCodigo}`
-      : `${cupomData?.valor || 0}% — ${cupomCodigo}`;
-    msg += `🎟️ Desconto (${dLabel}): − R$ ${desc.toLocaleString('pt-BR',{minimumFractionDigits:2})}\n`;
+    const desc = calcularDescontoCupom();
+    const dLabel = cupomData && cupomData.tipo === '%' ? `${cupomData.valor}%` : 'Preço especial';
+    msg += `🎟️ Desconto (${dLabel} — ${cupomCodigo}): − R$ ${desc.toLocaleString('pt-BR',{minimumFractionDigits:2})}\n`;
   }
   msg += `💰 *TOTAL: R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2})}*\n`;
   msg += `━━━━━━━━━━━━━━━━━━━━━━\n`;
-  msg += `\n_Pedido enviado via formulário PharmaFit-PY_`;
+  msg += `\n_Pedido enviado via formulário ${(typeof CLIENT !== 'undefined' && CLIENT.name) ? CLIENT.name : ''}_`;
 
   // Salvar localmente
   saveOrder(total);
@@ -1288,11 +1406,11 @@ function sendWhatsApp() {
     ? `${document.getElementById('f_parcelas').value}x de ${document.getElementById('f_parcela_val').value}`
     : '—';
 
-  // SHEETS_URL já definida no topo
+
+  const _cliSess = (typeof getClienteSession === 'function') ? getClienteSession() : null;
   const params = new URLSearchParams({
     clinica:       v('f_clinica'),
     responsavel:   v('f_responsavel'),
-    cargo:         v('f_cargo'),
     telefone:      v('f_telefone'),
     email:         v('f_email'),
     documento:     v('f_documento'),
@@ -1309,16 +1427,40 @@ function sendWhatsApp() {
     cupom_codigo:  cupomCodigo || '',
     cupom_pct:     cupomAplicado && cupomData?.tipo === '%' ? (cupomData.valor).toFixed(0) : '0',
     cupom_valor:   cupomAplicado ? calcularDescontoCupom().toFixed(2) : '0',
-    carrinho:      JSON.stringify(cart)
+    carrinho:      JSON.stringify(cart),
+    cliente_token: _cliSess?.token || '',
   });
-  fetch(`${SHEETS_URL}?${params.toString()}`, { method: 'GET', mode: 'no-cors' }).catch(() => {});
+  // Salva pedido. O backend já decrementa o estoque internamente — não precisa
+  // chamar action=decrementar_estoque separadamente.
+  try {
+    const r = await fetch(`${SHEETS_URL}?${params.toString()}`);
+    const data = await r.json().catch(() => null);
+    if (!data || data.ok === false) {
+      console.warn('Pedido pode não ter sido salvo:', data);
+    }
+  } catch (err) {
+    // Falha de rede/CORS: pedido pode não ter sido salvo. Segue o fluxo do
+    // WhatsApp pra não bloquear o cliente, mas avisa no console.
+    console.warn('Erro ao enviar pedido ao backend:', err);
+  }
 
   // Abrir WhatsApp
   const encoded = encodeURIComponent(msg);
-  window.open(`https://wa.me/${WA_NUMBER}?text=${encoded}`, '_blank');
+  const wa = (typeof CLIENT !== 'undefined' && CLIENT.wa) ? CLIENT.wa : WA_NUMBER;
+  if (wa) window.open(`https://wa.me/${wa}?text=${encoded}`, '_blank');
 
-  // Mostrar sucesso
+  // Mostrar sucesso. Não reativa o botão — `showSuccess` troca de tela
+  // (success-screen). Se o cliente quiser fazer outro pedido, `newOrder()`
+  // recarrega o form do zero. _sendingPedido fica true por segurança.
   showSuccess();
+  // Reset do flag pra permitir novo pedido após showSuccess (se o user voltar)
+  _sendingPedido = false;
+  if (btnWA) {
+    btnWA.disabled = false;
+    btnWA.style.opacity = '';
+    btnWA.style.cursor = '';
+    btnWA.innerHTML = _btnHtmlOrig;
+  }
 }
 
 function getFinalTotal() {
@@ -1327,11 +1469,14 @@ function getFinalTotal() {
     const parc   = parseInt(document.getElementById('f_parcelas').value);
     const config = PARCELAS_CONFIG.find(p => p.parcelas === parc);
     let juros  = config ? config.juros : 0;
-    if (cupomAplicado && cupomData?.parcelamento && parc <= 3) juros = 0;
+    if (cupomData?.parcelamento === 'SIM' && parc <= 3) juros = 0;
     if (juros > 0) total *= (1 + juros / 100);
   }
-  total -= calcularDescontoCupom();
-  if (total < 0) total = 0;
+  if (cupomAplicado) {
+    const desc = calcularDescontoCupom();
+    total -= desc;
+    if (total < 0) total = 0;
+  }
   return total;
 }
 
@@ -1342,6 +1487,12 @@ function showSuccess() {
 }
 
 function newOrder() {
+  // Preserva dados do cliente logado antes de limpar tudo
+  const camposCliente = ['f_documento','f_clinica','f_responsavel','f_telefone','f_email','f_cep_entrega','f_rua','f_numero','f_bairro','f_complemento','f_cidade','f_estado'];
+  const dadosSalvos = _clienteJaLogado
+    ? Object.fromEntries(camposCliente.map(id => [id, document.getElementById(id)?.value || '']))
+    : null;
+
   // Reset
   cart = {};
   selectedPayment  = '';
@@ -1349,6 +1500,7 @@ function newOrder() {
   cupomAplicado    = false;
   cupomDesconto    = 0;
   cupomCodigo      = '';
+  cupomData        = null;
   const fc = document.getElementById('f_cupom');
   const bc = document.getElementById('btn-cupom');
   const mc = document.getElementById('cupom-msg');
@@ -1356,6 +1508,14 @@ function newOrder() {
   if (bc) bc.disabled = false;
   if (mc) mc.innerHTML = '';
   document.querySelectorAll('input, textarea, select').forEach(el => { if (el.id !== 'f_parcelas') el.value = ''; });
+
+  // Restaura dados do cliente se estava logado
+  if (dadosSalvos) {
+    camposCliente.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = dadosSalvos[id];
+    });
+  }
   document.querySelectorAll('.pay-opt').forEach(el => el.classList.remove('selected'));
   document.getElementById('installment-wrap').classList.remove('show');
   for (let i = 1; i <= 4; i++) {
@@ -1372,7 +1532,7 @@ function newOrder() {
 
 // ─── LOCAL STORAGE "DATABASE" ────────────────────────────────────────────────
 function saveOrder(total) {
-  const orders = JSON.parse(localStorage.getItem('pharmafit_orders') || '[]');
+  const orders = JSON.parse(localStorage.getItem('lp_orders') || '[]');
   const products = Object.keys(cart).map(id => {
     const p = CATALOG.find(x => x.id === id);
     return p ? `${p.name} ×${cart[id]}` : id;
@@ -1388,11 +1548,11 @@ function saveOrder(total) {
     payment: selectedPayment,
     total: total.toFixed(2)
   });
-  localStorage.setItem('pharmafit_orders', JSON.stringify(orders));
+  localStorage.setItem('lp_orders', JSON.stringify(orders));
 }
 
 function openHistory() {
-  const orders = JSON.parse(localStorage.getItem('pharmafit_orders') || '[]');
+  const orders = JSON.parse(localStorage.getItem('lp_orders') || '[]');
   const body = document.getElementById('history-body');
   if (orders.length === 0) {
     body.innerHTML = '<div class="no-history">📭 Nenhum pedido registrado ainda.</div>';
@@ -1400,12 +1560,12 @@ function openHistory() {
     body.innerHTML = orders.map(o => `
       <div class="history-item">
         <div class="hi-top">
-          <span class="hi-clinic">${o.clinica}</span>
-          <span class="hi-total">R$ ${o.total}</span>
+          <span class="hi-clinic">${esc(o.clinica)}</span>
+          <span class="hi-total">R$ ${esc(o.total)}</span>
         </div>
-        <div class="hi-date">📅 ${o.date} · ${o.responsavel} · ${o.telefone}</div>
-        <div class="hi-products">💊 ${o.products.join(' | ')}</div>
-        <div class="hi-method">💳 ${o.payment}</div>
+        <div class="hi-date">📅 ${esc(o.date)} · ${esc(o.responsavel)} · ${esc(o.telefone)}</div>
+        <div class="hi-products">💊 ${esc(o.products.join(' | '))}</div>
+        <div class="hi-method">💳 ${esc(o.payment)}</div>
       </div>`).join('');
   }
   document.getElementById('history-modal').classList.add('open');
@@ -1417,7 +1577,7 @@ function closeHistory() {
 
 function clearHistory() {
   if (confirm('Apagar todo o histórico de pedidos?')) {
-    localStorage.removeItem('pharmafit_orders');
+    localStorage.removeItem('lp_orders');
     closeHistory();
   }
 }
@@ -1426,72 +1586,6 @@ function clearHistory() {
 document.getElementById('history-modal').addEventListener('click', function(e) {
   if (e.target === this) closeHistory();
 });
-
-// ─── ACESSO RÁPIDO — CPF ─────────────────────────────────────────────────────
-let _buscaTimer = null;
-
-function agendarBuscaCliente(valor) {
-  clearTimeout(_buscaTimer);
-  const doc = valor.replace(/\D/g, '');
-  if (doc.length === 11) {
-    _buscaTimer = setTimeout(() => buscarCliente(doc), 600);
-  } else {
-    // limpa feedback se apagou dígitos
-    document.getElementById('ar-loading').style.display = 'none';
-    document.getElementById('ar-bem-vindo').style.display = 'none';
-    document.getElementById('ar-nao-encontrado').style.display = 'none';
-    document.getElementById('ar-limpar').style.display = 'none';
-  }
-}
-
-async function buscarCliente(docParam) {
-  const doc = (docParam || '').replace(/\D/g, '');
-  if (!doc || doc.length !== 11) return;
-
-  document.getElementById('ar-loading').style.display = 'block';
-  document.getElementById('ar-bem-vindo').style.display = 'none';
-  document.getElementById('ar-nao-encontrado').style.display = 'none';
-  document.getElementById('ar-limpar').style.display = 'none';
-
-  try {
-    const res = await fetch(`${SHEETS_URL}?action=cliente&documento=${doc}`);
-    const data = await res.json();
-    document.getElementById('ar-loading').style.display = 'none';
-
-    if (data && data.nome) {
-      const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-      set('f_clinica',     data.nome);
-      set('f_responsavel', data.responsavel || data.apelido || '');
-      set('f_cargo',       data.cargo);
-      set('f_telefone',    data.telefone);
-      set('f_email',       data.email);
-      set('f_documento',   data.documento);
-      set('f_cidade',      data.cidade);
-      set('f_estado',      data.estado);
-      set('f_endereco',    data.endereco);
-
-      if (Array.isArray(data.historico)) clienteHistorico = data.historico;
-      const nome = data.responsavel || data.nome || 'cliente';
-      document.getElementById('ar-bem-vindo').innerHTML = `✅ Olá, <strong>${nome}</strong>! Seus dados foram preenchidos automaticamente.`;
-      document.getElementById('ar-bem-vindo').style.display = 'block';
-      document.getElementById('ar-limpar').style.display = 'inline-block';
-    } else {
-      document.getElementById('ar-nao-encontrado').innerHTML = '⚠️ Não encontramos seus dados. Preencha o formulário manualmente abaixo.';
-      document.getElementById('ar-nao-encontrado').style.display = 'block';
-    }
-  } catch (e) {
-    document.getElementById('ar-loading').style.display = 'none';
-  }
-}
-
-function limparAcesso() {
-  document.getElementById('ar-bem-vindo').style.display = 'none';
-  document.getElementById('ar-nao-encontrado').style.display = 'none';
-  document.getElementById('ar-limpar').style.display = 'none';
-  ['f_clinica','f_responsavel','f_cargo','f_telefone','f_email','f_documento','f_cep_entrega','f_rua','f_numero','f_bairro','f_complemento','f_cidade','f_estado'].forEach(id => {
-    const el = document.getElementById(id); if (el) el.value = '';
-  });
-}
 
 // ─── RECOMENDAÇÕES NA REVISÃO ────────────────────────────────────────────────
 function renderRecomendacoesRevisao() {
@@ -1521,13 +1615,13 @@ function renderRecomendacoesRevisao() {
     const inCart = cartIds.includes(p.id);
     return `<div class="rec-card">
       <div class="rec-card-top">
-        <span class="rec-card-icon">${p.icon}</span>
-        <span class="rec-card-name">${p.name}</span>
+        <span class="rec-card-icon">${esc(p.icon)}</span>
+        <span class="rec-card-name">${esc(p.name)}</span>
       </div>
-      <div class="rec-card-conc">${p.conc}</div>
+      <div class="rec-card-conc">${esc(p.conc)}</div>
       <div class="rec-card-price">R$ ${price.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
-      <button class="rec-add-btn" id="rec-btn-${p.id}" ${inCart ? 'disabled' : ''}
-        onclick="adicionarDaRec('${p.id}')">
+      <button class="rec-add-btn" id="rec-btn-${escAttr(p.id)}" ${inCart ? 'disabled' : ''}
+        onclick="adicionarDaRec('${escAttr(p.id)}')">
         ${inCart ? '✓ Já no carrinho' : '+ Adicionar ao pedido'}
       </button>
     </div>`;
@@ -1559,9 +1653,10 @@ function adicionarDaRec(id) {
     if (!cart[id]) cart[id] = 1;
   }
   updateTotal();
-  buildReview(); // atualiza a revisão inteira
+  buildReview();
 }
 
+// ─── LOGIN PANEL ────────────────────────────────────────────────────────────
 // ─── LOGIN PANEL ─────────────────────────────────────────────────────────────
 
 function lpToggleLogin() {
@@ -1576,12 +1671,11 @@ function lpToggleLogin() {
 }
 
 function lpShowForm() {
-  // formulário já está visível por padrão — só garante que o painel fecha
   document.getElementById('lp-panel').style.display = 'none';
 }
 
-function lpSetLogado(nome, apelido) {
-  const exibir = apelido || nome || '';
+function lpSetLogado(clinica, responsavel) {
+  const exibir = responsavel || clinica || '';
   document.getElementById('lp-nome-bar').textContent = exibir;
   document.getElementById('lp-logado-bar').style.display = 'flex';
 }
@@ -1589,7 +1683,7 @@ function lpSetLogado(nome, apelido) {
 function lpLogout() {
   clienteHistorico = [];
   _clienteJaLogado = false;
-  ['f_clinica','f_responsavel','f_cargo','f_telefone','f_email','f_documento','f_cep_entrega','f_rua','f_numero','f_bairro','f_complemento','f_cidade','f_estado'].forEach(id => {
+  ['f_clinica','f_responsavel','f_telefone','f_email','f_documento','f_cep_entrega','f_rua','f_numero','f_bairro','f_complemento','f_cidade','f_estado'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   document.getElementById('lp-logado-bar').style.display = 'none';
@@ -1602,6 +1696,11 @@ function lpFormatDoc(input) {
   let v = input.value.replace(/\D/g,'');
   if (v.length <= 11) {
     v = v.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2');
+  } else {
+    v = v.replace(/(\d{2})(\d)/,'$1.$2')
+         .replace(/(\d{3})(\d)/,'$1.$2')
+         .replace(/(\d{3})(\d)/,'$1/$2')
+         .replace(/(\d{4})(\d{1,2})$/,'$1-$2');
   }
   input.value = v;
 }
@@ -1610,8 +1709,8 @@ async function lpEntrar() {
   const raw     = document.getElementById('lp-doc-input').value.trim();
   const isEmail = raw.includes('@');
   const doc     = isEmail ? raw.toLowerCase() : raw.replace(/\D/g,'');
-  if (!isEmail && doc.length !== 11) {
-    document.getElementById('lp-erro').innerHTML = '⚠️ CPF inválido. <span class="lp-link" onclick="lpShowForm()">Preencher manualmente</span>';
+  if (!isEmail && doc.length !== 11 && doc.length !== 14) {
+    document.getElementById('lp-erro').innerHTML = '⚠️ CPF ou CNPJ inválido. <span class="lp-link" onclick="lpShowForm()">Preencher manualmente</span>';
     document.getElementById('lp-erro').style.display = 'block';
     return;
   }
@@ -1626,9 +1725,9 @@ async function lpEntrar() {
     const res = await fetch(`${SHEETS_URL}?action=cliente&documento=${encodeURIComponent(doc)}`);
     const data = await res.json();
     document.getElementById('lp-loading').style.display = 'none';
-    if (data && data.nome) {
+    if (data && (data.clinica || data.nome)) {
       lpPreencherCampos(data);
-      lpSetLogado(data.nome, data.responsavel || data.apelido);
+      lpSetLogado(data.clinica || data.nome, data.responsavel);
       if (Array.isArray(data.historico)) clienteHistorico = data.historico;
       _clienteJaLogado = true;
       lpShowForm();
@@ -1647,14 +1746,16 @@ async function lpEntrar() {
 
 function lpPreencherCampos(data) {
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-  set('f_documento',   data.cpf || data.documento || '');
-  set('f_clinica',     data.nome);
-  set('f_responsavel', data.responsavel || data.apelido || '');
+  set('f_documento',   data.doc || data.documento || '');
+  set('f_clinica',     data.clinica || data.nome || '');
+  set('f_responsavel', data.responsavel || '');
+  set(       data.cargo || '');
   set('f_telefone',    data.telefone);
   set('f_email',       data.email);
   set('f_cidade',      data.cidade);
   set('f_estado',      data.estado);
-  set('f_rua',         data.endereco);
+  // Carrega endereço legado no campo de rua para o cliente revisar
+  if (data.endereco) set('f_rua', data.endereco);
 }
 
 
