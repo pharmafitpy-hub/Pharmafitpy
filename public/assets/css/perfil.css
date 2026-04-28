@@ -255,6 +255,31 @@ body {
   margin-bottom: 12px;
 }
 .pf-prod-line { line-height: 1.5; }
+.pf-fin {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 8px 0 12px;
+  font-size: .88rem;
+}
+.pf-fin-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  color: var(--light);
+}
+.pf-fin-row strong { color: var(--white, #fff); font-weight: 700; }
+.pf-fin-desc strong { color: #f59e0b; }
+.pf-fin-total {
+  border-top: 1px solid rgba(255,255,255,0.12);
+  margin-top: 4px;
+  padding-top: 8px;
+  font-size: .95rem;
+}
+.pf-fin-total strong { color: var(--accent, #f59e0b); font-size: 1.05rem; }
+.pf-fin-meta { font-size: .8rem; color: var(--gray, #9CA3AF); }
 .pf-pedido-meta {
   display: flex;
   flex-wrap: wrap;

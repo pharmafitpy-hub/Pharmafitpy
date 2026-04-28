@@ -705,11 +705,41 @@ function renderDrawer(order) {
             </tr>`).join('')}
           </tbody>
         </table>
-        <div class="drawer-total">
-          Total: <strong>${formatMoeda(order.total)}</strong>
-          ${order.cupom ? ` &nbsp;·&nbsp; Cupom: <code>${esc(order.cupom)}</code>` : ''}
-        </div>
       </div>
+
+      ${(() => {
+        const total      = parseFloat(String(order.total      || '0').replace(',','.')) || 0;
+        const freteV     = parseFloat(String(order.freteValor || '0').replace(',','.')) || 0;
+        const cupomV     = parseFloat(String(order.cupomValor || '0').replace(',','.')) || 0;
+        const subtotal   = Math.max(0, total - freteV + cupomV);
+        // Tenta detectar juros: se parcelas tem "juros", calcula valor sem juros
+        const parcelasStr = String(order.parcelas || '');
+        const matchJuros  = parcelasStr.match(/(\d+)x.*?\((\d+(?:[.,]\d+)?)%\s*juros\)/i);
+        const matchSemJuros = parcelasStr.match(/^(\d+)x sem juros$/i);
+        let semJurosVal = 0, jurosPct = 0, parcelasN = 1;
+        if (matchJuros) {
+          parcelasN = parseInt(matchJuros[1]);
+          jurosPct  = parseFloat(matchJuros[2].replace(',','.'));
+          semJurosVal = total / (1 + jurosPct/100);
+        } else if (matchSemJuros) {
+          parcelasN = parseInt(matchSemJuros[1]);
+          semJurosVal = total;
+        }
+        return `
+        <div class="drawer-section">
+          <h3>💰 Resumo Financeiro</h3>
+          <div class="fin-summary">
+            <div class="fin-row"><span>Subtotal produtos</span><strong>${formatMoeda(subtotal)}</strong></div>
+            ${cupomV > 0 ? `<div class="fin-row fin-desc"><span>🎟️ Desconto${order.cupom ? ' ('+esc(order.cupom)+')' : ''}</span><strong>− ${formatMoeda(cupomV)}</strong></div>` : ''}
+            ${(freteV > 0 || order.freteMetodo) ? `<div class="fin-row"><span>📦 Frete${order.freteMetodo ? ' ('+esc(String(order.freteMetodo).toUpperCase())+')' : ''}</span><strong>${formatMoeda(freteV)}</strong></div>` : ''}
+            ${jurosPct > 0 ? `<div class="fin-row fin-meta"><span>Subtotal sem juros</span><strong>${formatMoeda(semJurosVal)}</strong></div>` : ''}
+            ${jurosPct > 0 ? `<div class="fin-row fin-meta"><span>+ Juros (${jurosPct}%)</span><strong>${formatMoeda(total - semJurosVal)}</strong></div>` : ''}
+            <div class="fin-row fin-total"><span>Total pago</span><strong>${formatMoeda(total)}</strong></div>
+            ${parcelasStr ? `<div class="fin-row fin-meta"><span>💳 ${esc(parcelasStr)}</span>${parcelasN > 1 ? `<strong>${parcelasN}× ${formatMoeda(total/parcelasN)}</strong>` : ''}</div>` : ''}
+            ${order.pagamento ? `<div class="fin-row fin-meta"><span>Pagamento</span><strong>${esc(order.pagamento)}</strong></div>` : ''}
+          </div>
+        </div>`;
+      })()}
 
       ${addrParts ? `
       <div class="drawer-section">

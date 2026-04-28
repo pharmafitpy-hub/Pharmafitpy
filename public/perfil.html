@@ -223,6 +223,20 @@ function pfPedidoCard(p) {
        </a>`
     : '';
   const dataEnvioH = p.dataEnvio ? `<span class="pf-meta">enviado em ${pfEsc(p.dataEnvio)}</span>` : '';
+
+  // Breakdown financeiro
+  const total       = parseFloat(String(p.total      ||'0').replace(',','.')) || 0;
+  const freteValor  = parseFloat(String(p.freteValor ||'0').replace(',','.')) || 0;
+  const cupomValor  = parseFloat(String(p.cupomValor ||'0').replace(',','.')) || 0;
+  const subtotal    = Math.max(0, total - freteValor + cupomValor);
+  const freteH = (freteValor > 0 || p.freteMetodo)
+    ? `<div class="pf-fin-row"><span>📦 Frete${p.freteMetodo ? ' ('+pfEsc(String(p.freteMetodo).toUpperCase())+')' : ''}</span><strong>R$ ${pfFmtBrl(freteValor)}</strong></div>`
+    : '';
+  const cupomDescH = cupomValor > 0
+    ? `<div class="pf-fin-row pf-fin-desc"><span>🎟️ Desconto ${p.cupom ? '('+pfEsc(p.cupom)+')' : ''}</span><strong>− R$ ${pfFmtBrl(cupomValor)}</strong></div>`
+    : '';
+  const parcelasH = p.parcelas ? `<div class="pf-fin-row pf-fin-meta"><span>💳 ${pfEsc(p.parcelas)}</span></div>` : '';
+
   return `<article class="pf-pedido">
     <header class="pf-pedido-head">
       <div>
@@ -239,9 +253,15 @@ function pfPedidoCard(p) {
 
     <div class="pf-pedido-body">
       ${itensH ? `<div class="pf-prods">${itensH}</div>` : ''}
+      <div class="pf-fin">
+        <div class="pf-fin-row"><span>Subtotal produtos</span><strong>R$ ${pfFmtBrl(subtotal)}</strong></div>
+        ${cupomDescH}
+        ${freteH}
+        <div class="pf-fin-row pf-fin-total"><span>Total pago</span><strong>R$ ${pfFmtBrl(total)}</strong></div>
+        ${parcelasH}
+      </div>
       <div class="pf-pedido-meta">
         ${p.pagamento ? `<span class="pf-tag">${pfEsc(p.pagamento)}</span>` : ''}
-        ${p.cupom ? `<span class="pf-tag pf-tag-accent">🎟️ ${pfEsc(p.cupom)}</span>` : ''}
         ${dataStatus}
         ${dataEnvioH}
       </div>
