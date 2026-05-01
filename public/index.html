@@ -48,9 +48,14 @@
 
 <!-- ═══ HERO ═══ -->
 <section class="hero">
-  <!-- HERO PADRÃO (visitante) -->
-  <div class="hero-inner hero-default" id="hero-default">
+  <div class="hero-inner">
     <div class="hero-left hero-centered">
+      <!-- Saudação personalizada (só logado) -->
+      <div class="welcome-greet" id="welcome-greet" style="display:none">
+        <span class="welcome-wave">👋</span>
+        <span>Bem-vindo de volta, <strong id="greet-name">cliente</strong>!</span>
+      </div>
+
       <div class="hero-badge"><span class="dot"></span> Catálogo B2B</div>
       <h1 class="hero-title">
         Tudo que você precisa<br/><span class="highlight">em um só lugar</span>
@@ -67,32 +72,24 @@
           📋 Ver Catálogo
         </a>
       </div>
-    </div>
-  </div>
 
-  <!-- HERO LOGADO (cliente recorrente) -->
-  <div class="hero-inner hero-logado" id="hero-logado" style="display:none">
-    <div class="hero-greet">
-      <div class="greet-eyebrow">👋 Bem-vindo de volta,</div>
-      <h1 class="greet-name"><span id="greet-name">cliente</span></h1>
-      <p class="greet-sub">Continue de onde parou ou faça um novo pedido.</p>
-    </div>
-    <div class="quick-actions" id="quick-actions">
-      <a href="pedido.html?repeat=last" class="qa-card qa-primary">
-        <div class="qa-icon">🔄</div>
-        <div class="qa-title">Refazer último pedido</div>
-        <div class="qa-sub">Em poucos cliques</div>
-      </a>
-      <a href="pedido.html" class="qa-card">
-        <div class="qa-icon">🛒</div>
-        <div class="qa-title">Novo pedido</div>
-        <div class="qa-sub">Catálogo completo</div>
-      </a>
-      <a href="perfil.html" class="qa-card">
-        <div class="qa-icon">📋</div>
-        <div class="qa-title">Meus pedidos</div>
-        <div class="qa-sub">Histórico e status</div>
-      </a>
+      <!-- Atalhos rápidos (só logado) -->
+      <div class="quick-actions" id="quick-actions" style="display:none">
+        <a href="pedido.html?repeat=last" class="qa-chip qa-primary">
+          <span class="qa-icon">🔄</span>
+          <span>
+            <span class="qa-title">Refazer último pedido</span>
+            <span class="qa-sub">Em poucos cliques</span>
+          </span>
+        </a>
+        <a href="perfil.html" class="qa-chip">
+          <span class="qa-icon">📋</span>
+          <span>
+            <span class="qa-title">Meus pedidos</span>
+            <span class="qa-sub">Histórico e status</span>
+          </span>
+        </a>
+      </div>
     </div>
   </div>
 </section>

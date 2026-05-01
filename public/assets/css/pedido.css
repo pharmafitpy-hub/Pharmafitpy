@@ -202,6 +202,39 @@
   }
   .search-clear-btn:hover { background: var(--accent); color: var(--petrol); }
 
+  /* ── PRODUCT IMAGE / PLACEHOLDER (gradient + ícone) ── */
+  .product-img { display: block; object-fit: cover; }
+  .img-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .img-placeholder::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,.1) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .img-placeholder .ph-icon {
+    font-size: 2em;
+    line-height: 1;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,.35));
+    z-index: 1;
+  }
+  .img-placeholder.tone-0 { background: linear-gradient(135deg, #6366F1 0%, #312E81 100%); }
+  .img-placeholder.tone-1 { background: linear-gradient(135deg, #7C3AED 0%, #4C1D95 100%); }
+  .img-placeholder.tone-2 { background: linear-gradient(135deg, #F59E0B 0%, #B45309 100%); }
+  .img-placeholder.tone-3 { background: linear-gradient(135deg, #10B981 0%, #065F46 100%); }
+  .img-placeholder.tone-4 { background: linear-gradient(135deg, #EF4444 0%, #991B1B 100%); }
+  .img-placeholder.tone-5 { background: linear-gradient(135deg, #3B82F6 0%, #1E3A8A 100%); }
+  .img-placeholder.tone-6 { background: linear-gradient(135deg, #EC4899 0%, #9D174D 100%); }
+  .img-placeholder.tone-7 { background: linear-gradient(135deg, #14B8A6 0%, #134E4A 100%); }
+  .img-placeholder.tone-8 { background: linear-gradient(135deg, #A855F7 0%, #581C87 100%); }
+  .img-placeholder.tone-9 { background: linear-gradient(135deg, #F97316 0%, #7C2D12 100%); }
+
   /* ── HERO CARROSSEL ── */
   .hero-carousel {
     position: relative;
@@ -469,7 +502,18 @@
     border-radius: 20px;
     letter-spacing: .5px;
   }
-  .rec-card-icon { font-size: 1.6rem; margin-bottom: 4px; }
+  .rec-card-icon { font-size: 1.6rem; margin-bottom: 8px; }
+  /* tamanho fixo quando rec-card-icon é uma imagem ou placeholder */
+  img.rec-card-icon, .rec-card-icon.img-placeholder {
+    width: 56px; height: 56px;
+    border-radius: 10px;
+    object-fit: cover;
+    display: flex;
+  }
+  /* tamanho fixo pra pc-icon como img */
+  img.pc-icon { width: 44px; height: 44px; border-radius: 11px; object-fit: cover; }
+  /* hero-slide-icon como img */
+  img.hero-slide-icon { object-fit: cover; }
   .rec-card-name { font-size: .85rem; font-weight: 700; color: var(--white); line-height: 1.2; margin-bottom: 2px; }
   .rec-card-conc { font-size: .65rem; color: var(--gray); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
   .rec-card-price-row { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; margin-top: auto; padding-right: 36px; }

@@ -1899,6 +1899,15 @@ function buildVariantesStr(prefix) {
     }).filter(Boolean).join('|');
 }
 
+// Preview ao vivo da imagem do produto no editor
+function previewImagemProduto(filename) {
+  const wrap = document.getElementById('ep-imagem-preview');
+  if (!wrap) return;
+  const f = (filename || '').trim();
+  if (!f) { wrap.innerHTML = '📦'; return; }
+  wrap.innerHTML = `<img src="../assets/img/produtos/${escAttr(f)}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.outerHTML='⚠️'"/>`;
+}
+
 function abrirEditarProduto(prodId) {
   const p = App.produtos.find(x => x.id === prodId);
   if (!p) return;
@@ -1938,6 +1947,20 @@ function abrirEditarProduto(prodId) {
         </div>
       </div>
 
+      <div class="cfg-row">
+        <div class="field-inline" style="flex:0 0 240px">
+          <label>Imagem (arquivo)</label>
+          <input id="ep-imagem" value="${escAttr(p.imagem||'')}" placeholder="bpc-157.webp"
+            oninput="previewImagemProduto(this.value)"/>
+          <small style="font-size:.7rem;color:var(--gray);margin-top:4px;display:block;line-height:1.3">
+            Suba o arquivo em <code>assets/img/produtos/</code> no GitHub e coloque o nome aqui.
+          </small>
+        </div>
+        <div class="field-inline" style="flex:0 0 88px;align-items:center">
+          <label>Preview</label>
+          <div id="ep-imagem-preview" style="width:72px;height:72px;border-radius:10px;background:var(--input-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:1.6rem">${p.imagem ? `<img src="../assets/img/produtos/${escAttr(p.imagem)}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.outerHTML='⚠️'"/>` : '📦'}</div>
+        </div>
+      </div>
       <div class="cfg-row">
         <div class="field-inline"><label>Categoria</label>
           <select id="ep-categoria">
@@ -2007,6 +2030,7 @@ async function salvarProduto(e) {
   const icone = document.getElementById('ep-icone')?.value.trim(); if (icone) params.icone = icone;
   const cat = document.getElementById('ep-categoria')?.value; if (cat !== undefined) params.categoria = cat;
   const tags = document.getElementById('ep-tags')?.value.trim(); if (tags !== undefined) params.tags = tags;
+  const img = document.getElementById('ep-imagem')?.value.trim(); if (img !== undefined) params.imagem = img;
   // Destaque aceita 'destaque' ou 'recomendado' (ou vazio). Aqui é binário —
   // checkbox marcado = 'destaque'. Pra 'recomendado' edita manualmente na planilha.
   params.destaque = document.getElementById('ep-destaque')?.checked ? 'destaque' : '';
