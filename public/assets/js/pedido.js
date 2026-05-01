@@ -717,7 +717,7 @@ function renderProducts() {
            style="">
         ${promoRibbon}
         <div class="pc-header">
-          <span class="pc-icon">${esc(p.icon)}</span>
+          ${productImageHTML(p, 'pc-icon')}
           <div class="pc-check">${cardSelected ? '✓' : ''}</div>
         </div>
         <div class="pc-name">${esc(p.name)}</div>
@@ -736,6 +736,37 @@ function renderProducts() {
   });
   updateTotal();
   startCountdowns();
+}
+
+// ─── IMAGEM DE PRODUTO ──────────────────────────────────────────────────────
+// Convenção: cada cliente sobe imagens em /assets/img/produtos/ (no GitHub).
+// Coluna `imagem` na planilha guarda só o filename (ex: "bpc-157.webp").
+// Sem imagem → placeholder colorido com gradient (tom determinístico do nome) + ícone.
+function _imgHashTone(str) {
+  let h = 0; const s = String(str || '');
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h) % 10;
+}
+window.imgFallback = function(imgEl) {
+  const tone = imgEl.dataset.tone || '0';
+  const icon = imgEl.dataset.icon || '💊';
+  const sizeClass = imgEl.dataset.sizeClass || '';
+  const div = document.createElement('div');
+  div.className = `img-placeholder ${sizeClass} tone-${tone}`;
+  div.innerHTML = `<span class="ph-icon">${icon}</span>`;
+  imgEl.replaceWith(div);
+};
+function productImageHTML(p, sizeClass) {
+  const tone = _imgHashTone(p.categoria || p.id || p.name || '');
+  const icon = p.icon || '💊';
+  const cls  = sizeClass || '';
+  if (p.imagem) {
+    const src = `assets/img/produtos/${p.imagem}`;
+    return `<img class="product-img ${cls}" src="${escAttr(src)}" alt="${escAttr(p.name)}" loading="lazy"
+      data-tone="${tone}" data-icon="${escAttr(icon)}" data-size-class="${escAttr(cls)}"
+      onerror="imgFallback(this)"/>`;
+  }
+  return `<div class="img-placeholder ${cls} tone-${tone}"><span class="ph-icon">${esc(icon)}</span></div>`;
 }
 
 // ─── HERO CARROSSEL ─────────────────────────────────────────────────────────
@@ -772,7 +803,7 @@ function renderHero() {
       : '';
     return `
       <div class="hero-slide theme-${s.theme}" data-idx="${i}" onclick="abrirProdutoDoHero('${escAttr(p.id)}')">
-        <div class="hero-slide-icon">${esc(p.icon || '💊')}</div>
+        ${productImageHTML(p, 'hero-slide-icon')}
         <div class="hero-slide-content">
           <span class="hero-slide-badge">${s.badge}</span>
           <div class="hero-slide-title">${esc(p.name)}</div>
@@ -936,7 +967,7 @@ function renderRecomendados() {
     return `
       <div class="rec-card ${promoAtiva ? 'promo-ativa' : ''} ${inCart ? 'in-cart' : ''}" id="rec-${escAttr(p.id)}" onclick="abrirProdutoDoHero('${escAttr(p.id)}')">
         ${promoAtiva ? '<div class="rec-card-ribbon">🔥 Promo</div>' : ''}
-        <div class="rec-card-icon">${esc(p.icon || '💊')}</div>
+        ${productImageHTML(p, 'rec-card-icon')}
         <div class="rec-card-name">${esc(p.name)}</div>
         ${p.conc ? `<div class="rec-card-conc">${esc(p.conc)}</div>` : ''}
         <div class="rec-card-price-row">
