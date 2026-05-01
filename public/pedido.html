@@ -75,6 +75,26 @@
       <button class="search-clear-btn" id="search-clear-btn" onclick="clearSearch()" style="display:none">✕</button>
     </div>
 
+    <!-- SKELETON LOADING (mostrado enquanto CATALOG carrega) -->
+    <div class="skeleton-wrap" id="skeleton-wrap">
+      <div class="sk-hero">
+        <div class="sk-hero-icon"></div>
+        <div class="sk-hero-content">
+          <div class="sk-line sk-line-sm" style="width:30%"></div>
+          <div class="sk-line sk-line-lg" style="width:70%"></div>
+          <div class="sk-line sk-line-md" style="width:50%"></div>
+        </div>
+      </div>
+      <div class="sk-cat-grid">
+        <div class="sk-cat-tile"></div>
+        <div class="sk-cat-tile"></div>
+        <div class="sk-cat-tile"></div>
+        <div class="sk-cat-tile"></div>
+        <div class="sk-cat-tile"></div>
+        <div class="sk-cat-tile"></div>
+      </div>
+    </div>
+
     <!-- HERO CARROSSEL DE DESTAQUES -->
     <section class="hero-carousel" id="hero-carousel" style="display:none">
       <div class="hero-track" id="hero-track"></div>
@@ -90,6 +110,15 @@
         <span class="cat-section-sub">Toque para explorar</span>
       </div>
       <div class="cat-grid" id="cat-grid"></div>
+    </section>
+
+    <!-- RECOMENDADOS -->
+    <section class="rec-section" id="rec-section" style="display:none">
+      <div class="cat-section-head">
+        <h2 class="cat-section-title">💡 Recomendados pra você</h2>
+        <span class="cat-section-sub">Selecionados</span>
+      </div>
+      <div class="rec-track" id="rec-track"></div>
     </section>
 
     <!-- CHIP DE CATEGORIA ATIVA -->

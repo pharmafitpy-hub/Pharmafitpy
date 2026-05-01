@@ -136,6 +136,9 @@ async function carregarProdutos() {
     renderFilters();
     renderProducts();
     renderHighlights();
+    // Remove skeleton agora que CATALOG está pronto
+    const sk = document.getElementById('skeleton-wrap');
+    if (sk) sk.style.display = 'none';
 
   } catch(e) {
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#e74c3c">⚠️ Erro ao carregar produtos. Recarregue a página.</div>';
@@ -567,15 +570,18 @@ function renderProducts() {
   if (chipBar) chipBar.style.display = (filtering && !searching) ? 'flex' : 'none';
   if (advWrap) advWrap.style.display = navMode ? 'none' : '';
 
+  const recSec = document.getElementById('rec-section');
   if (navMode) {
     renderHero();
     renderCategoryTiles();
+    renderRecomendados();
     if (grid)  grid.style.display  = 'none';
     if (empty) empty.style.display = 'none';
     grid.innerHTML = '';
     updateTotal();
     return;
   }
+  if (recSec) recSec.style.display = 'none';
 
   // Atualiza chip da categoria ativa
   if (filtering && !searching) {
@@ -743,15 +749,13 @@ function renderHero() {
   const hero = document.getElementById('hero-carousel');
   if (!track || !hero) return;
 
-  // Monta slides: promoções ativas + destaques + recomendados (ordem de prioridade)
-  const promos      = CATALOG.filter(p => isPromoAtiva(p));
-  const destaques   = CATALOG.filter(p => p.destaque === 'destaque' && !promos.includes(p));
-  const recomendados= CATALOG.filter(p => p.destaque === 'recomendado' && !promos.includes(p) && !destaques.includes(p));
-
-  const slides = [];
-  promos.forEach(p      => slides.push({ p, theme: 'promo',      badge: '🔥 Promoção' }));
-  destaques.forEach(p   => slides.push({ p, theme: 'destaque',   badge: '⭐ Destaque' }));
-  recomendados.forEach(p=> slides.push({ p, theme: 'recomendado',badge: '💡 Recomendado' }));
+  // Hero exibe apenas produtos em destaque (promo herda tema visual quando aplicável)
+  const destaques = CATALOG.filter(p => p.destaque === 'destaque');
+  const slides = destaques.map(p => ({
+    p,
+    theme: isPromoAtiva(p) ? 'promo' : 'destaque',
+    badge: isPromoAtiva(p) ? '🔥 Promoção' : '⭐ Destaque',
+  }));
 
   _heroSlides = slides;
   if (slides.length === 0) { hero.style.display = 'none'; return; }
@@ -899,6 +903,72 @@ function renderCategoryTiles() {
         <div class="cat-tile-count">${CATALOG.length} produto(s)</div>
       </div>
     </div>`;
+}
+
+function renderRecomendados() {
+  const sec = document.getElementById('rec-section');
+  const track = document.getElementById('rec-track');
+  if (!sec || !track) return;
+  const recs = CATALOG.filter(p => p.destaque === 'recomendado');
+  if (recs.length === 0) { sec.style.display = 'none'; return; }
+  sec.style.display = '';
+  // Subtítulo dinâmico — usa nome do cliente logado se houver
+  const titleEl = sec.querySelector('.cat-section-title');
+  const subEl   = sec.querySelector('.cat-section-sub');
+  let nome = '';
+  try {
+    const sess = (typeof getClienteSession === 'function') ? getClienteSession() : null;
+    nome = (sess && (sess.apelido || sess.nome || sess.responsavel)) || '';
+    if (nome) nome = String(nome).split(' ')[0]; // primeiro nome
+  } catch(e) {}
+  if (titleEl) titleEl.textContent = nome ? `💡 Pra você, ${nome}` : '💡 Recomendados pra você';
+  if (subEl)   subEl.textContent   = nome ? 'Selecionados com base no seu perfil' : 'Selecionados';
+  track.innerHTML = recs.map(p => {
+    const promoAtiva = isPromoAtiva(p);
+    const price = getEffectivePrice(p);
+    const oldPrice = (promoAtiva && p.price > price)
+      ? `<span class="rec-card-price-old">R$ ${p.price.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>`
+      : '';
+    const temVar = p.variantes && p.variantes.length > 0;
+    const inCart = temVar
+      ? p.variantes.some((_, i) => (cart[`${p.id}__${i}`] || 0) > 0)
+      : !!cart[p.id];
+    return `
+      <div class="rec-card ${promoAtiva ? 'promo-ativa' : ''} ${inCart ? 'in-cart' : ''}" id="rec-${escAttr(p.id)}" onclick="abrirProdutoDoHero('${escAttr(p.id)}')">
+        ${promoAtiva ? '<div class="rec-card-ribbon">🔥 Promo</div>' : ''}
+        <div class="rec-card-icon">${esc(p.icon || '💊')}</div>
+        <div class="rec-card-name">${esc(p.name)}</div>
+        ${p.conc ? `<div class="rec-card-conc">${esc(p.conc)}</div>` : ''}
+        <div class="rec-card-price-row">
+          ${oldPrice}
+          <span class="rec-card-price">R$ ${price.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+        </div>
+        <button class="rec-card-add" onclick="event.stopPropagation(); adicionarRecomendado('${escAttr(p.id)}')" aria-label="Adicionar ao carrinho">${inCart ? '✓' : '+'}</button>
+      </div>`;
+  }).join('');
+}
+
+function adicionarRecomendado(id) {
+  const p = CATALOG.find(x => x.id === id);
+  if (!p) return;
+  // Se tem variantes, abre o produto pra escolher dose. Senão, toggle direto.
+  if (p.variantes && p.variantes.length > 0) {
+    abrirProdutoDoHero(id);
+    return;
+  }
+  if (cart[id]) {
+    delete cart[id];
+  } else {
+    cart[id] = 1;
+  }
+  // Atualiza visual do rec-card
+  const recEl = document.getElementById('rec-' + id);
+  if (recEl) {
+    recEl.classList.toggle('in-cart', !!cart[id]);
+    const btn = recEl.querySelector('.rec-card-add');
+    if (btn) btn.textContent = cart[id] ? '✓' : '+';
+  }
+  updateTotal();
 }
 
 function abrirProdutoDoHero(id) {
