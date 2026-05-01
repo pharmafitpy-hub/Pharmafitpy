@@ -239,6 +239,7 @@ function renderCurrentView() {
   if (App.view === 'cupons')     { loadCupons().then(renderCupons); }
   if (App.view === 'relatorio')  { loadRelatorio().then(renderRelatorio); }
   if (App.view === 'config')     { loadAdmins().then(renderConfig); }
+  if (App.view === 'indicacoes') { carregarIndicacoes(); }
   if (App.view === 'gerador') {
     if (typeof window.initGerador === 'function') window.initGerador();
   }
@@ -2793,4 +2794,105 @@ function formatPhone_tc(tel) {
   if (t.length === 11) return `(${t.slice(0,2)}) ${t.slice(2,7)}-${t.slice(7)}`;
   if (t.length === 10) return `(${t.slice(0,2)}) ${t.slice(2,6)}-${t.slice(6)}`;
   return tel;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INDICAÇÕES (admin)
+// ═══════════════════════════════════════════════════════════════════════════════
+let _indicacoesCache = [];
+let _indicacoesStats = {};
+
+async function carregarIndicacoes() {
+  const tbody = document.getElementById('ind-tbody');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="loading-msg">⏳ Carregando…</td></tr>';
+  try {
+    const data = await API.indicacoes();
+    if (data && data.ok) {
+      _indicacoesCache = data.indicacoes || [];
+      _indicacoesStats = data.stats || {};
+      renderIndicacoes();
+    } else {
+      if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="empty-msg">⚠️ ${esc(data?.erro || 'Erro ao carregar')}</td></tr>`;
+    }
+  } catch (e) {
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="empty-msg">⚠️ Erro de conexão</td></tr>';
+  }
+}
+
+function renderIndicacoes() {
+  const tbody = document.getElementById('ind-tbody');
+  const statsBar = document.getElementById('ind-stats-bar');
+  if (!tbody) return;
+
+  // Stats cards
+  if (statsBar) {
+    const s = _indicacoesStats;
+    statsBar.innerHTML = `
+      <div class="stat-card"><div class="stat-val">${formatMoeda(s.totalPendente||0)}</div><div class="stat-lbl">⏳ Pendente</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:#22C55E">${formatMoeda(s.totalLiberada||0)}</div><div class="stat-lbl">✅ Liberada</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:#FCA5A5">${formatMoeda(s.totalRevogada||0)}</div><div class="stat-lbl">❌ Revogada</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:#F59E0B">${formatMoeda(s.totalSuspeita||0)}</div><div class="stat-lbl">🚩 Suspeita</div></div>
+      <div class="stat-card"><div class="stat-val">${s.qtd||0}</div><div class="stat-lbl">Total indicações</div></div>
+    `;
+  }
+
+  const q = (document.getElementById('ind-search')?.value||'').toLowerCase().trim();
+  const filtroStatus = (document.getElementById('ind-filter-status')?.value||'').toUpperCase();
+
+  const lista = _indicacoesCache.filter(i => {
+    if (filtroStatus && i.comissao_status !== filtroStatus) return false;
+    if (!q) return true;
+    return [i.indicador_nome, i.indicador_apelido, i.indicador_email, i.indicador_id,
+            i.indicado_nome, i.indicado_email]
+      .some(v => String(v||'').toLowerCase().includes(q));
+  });
+
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-msg">Nenhuma indicação encontrada</td></tr>';
+    return;
+  }
+
+  const stColor = (st) => {
+    if (st === 'LIBERADA') return '#22C55E';
+    if (st === 'REVOGADA') return '#FCA5A5';
+    if (st === 'SUSPEITA') return '#F59E0B';
+    return 'var(--text2)';
+  };
+  const stIcon = (st) => ({ PENDENTE:'⏳', LIBERADA:'✅', REVOGADA:'❌', SUSPEITA:'🚩' })[st] || '';
+
+  tbody.innerHTML = lista.map(i => {
+    const indicadorLbl = i.indicador_apelido || i.indicador_nome || i.indicador_id;
+    const indicadoLbl  = i.indicado_nome || i.indicado_email;
+    const acoes = `
+      <button class="btn-xs" title="Liberar comissão" onclick="acaoIndicacao(${i.rowNum},'LIBERADA')">✅ Liberar</button>
+      <button class="btn-xs" title="Revogar comissão" onclick="acaoIndicacao(${i.rowNum},'REVOGADA')">❌ Revogar</button>
+      <button class="btn-xs" title="Marcar como suspeita" onclick="acaoIndicacao(${i.rowNum},'SUSPEITA')">🚩 Suspeita</button>
+    `;
+    return `
+      <tr>
+        <td style="font-size:11px;color:var(--text2);white-space:nowrap">${esc(i.data)}</td>
+        <td><strong>${esc(indicadorLbl)}</strong><div style="font-size:11px;color:var(--text2)">${esc(i.indicador_id)}</div></td>
+        <td><strong>${esc(indicadoLbl)}</strong><div style="font-size:11px;color:var(--text2)">${esc(i.indicado_email)}</div></td>
+        <td style="text-align:right;font-size:12px">${formatMoeda(i.total_pedido)}<div style="font-size:10px;color:var(--text2)">${esc(i.status_pedido)}</div></td>
+        <td style="text-align:right;font-weight:700;color:var(--accent)">${formatMoeda(i.comissao_valor)}</td>
+        <td style="color:${stColor(i.comissao_status)};font-weight:600">${stIcon(i.comissao_status)} ${esc(i.comissao_status)}</td>
+        <td>${acoes}</td>
+      </tr>`;
+  }).join('');
+}
+
+async function acaoIndicacao(rowNum, status) {
+  const labels = { LIBERADA: 'liberar', REVOGADA: 'revogar', SUSPEITA: 'marcar como suspeita' };
+  if (!confirm(`Tem certeza que quer ${labels[status]} esta comissão?`)) return;
+  try {
+    const data = await API.setIndicacaoStatus(rowNum, status);
+    if (data && data.ok) {
+      showToast('Status atualizado');
+      carregarIndicacoes();
+    } else {
+      showToast('⚠️ ' + (data?.erro || 'Erro'), 'error');
+    }
+  } catch (e) {
+    showToast('⚠️ Erro de conexão', 'error');
+  }
 }

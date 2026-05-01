@@ -65,4 +65,6 @@ const API = {
   retornarEstoque:  (id)                => API.call({ action: 'retornar_estoque', id }),
   protocolos:       ()                  => API.call({ action: 'protocolos' }),
   editarProtocolo:  (p)                 => API.call({ action: 'editar_protocolo', ...p }),
+  indicacoes:       ()                  => API.call({ action: 'painel_indicacoes' }),
+  setIndicacaoStatus: (rowNum, status)  => API.call({ action: 'set_indicacao_status', rowNum, status }),
 };
