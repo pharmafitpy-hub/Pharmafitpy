@@ -1667,9 +1667,10 @@ function _buildCupomCard(c) {
     validadeBadge = `<span class="cc-validade ${cls}">📅 ${esc(txt)}</span>`;
   }
 
+  const vendInic = c.vendedora ? c.vendedora.trim().split(/\s+/).slice(0,2).map(p=>p.charAt(0).toUpperCase()).join('') : '?';
   const vendedoraLine = c.vendedora
-    ? `<div class="cc-vend"><span class="cc-vend-icon">👤</span> <span class="cc-vend-name">${esc(c.vendedora)}</span></div>`
-    : `<div class="cc-vend cc-vend-none"><span class="cc-vend-icon">👤</span> <span>Sem vendedora atribuída</span></div>`;
+    ? `<div class="cc-vend"><span class="cc-vend-avatar">${esc(vendInic)}</span> <span class="cc-vend-name">${esc(c.vendedora)}</span></div>`
+    : `<div class="cc-vend cc-vend-none"><span class="cc-vend-avatar">?</span> <span>Sem vendedora atribuída</span></div>`;
 
   const receita = (c.receita_gerada||0);
   const receitaTxt = receita > 0
@@ -1712,15 +1713,15 @@ function _buildCupomCard(c) {
       <div class="cc-stats">
         <div class="cc-stat">
           <div class="cc-stat-label">Usos</div>
-          <div class="cc-stat-val">${c.usos||0}</div>
+          <div class="cc-stat-val ${(c.usos||0) === 0 ? 'cc-stat-empty' : ''}">${c.usos||0}</div>
         </div>
         <div class="cc-stat">
           <div class="cc-stat-label">Receita</div>
-          <div class="cc-stat-val cc-stat-revenue">${receitaTxt}</div>
+          <div class="cc-stat-val cc-stat-revenue ${receita === 0 ? 'cc-stat-empty' : ''}">${receitaTxt}</div>
         </div>
         <div class="cc-stat">
           <div class="cc-stat-label">Último uso</div>
-          <div class="cc-stat-val">${ultimoUsoTxt}</div>
+          <div class="cc-stat-val ${!ultimoUso ? 'cc-stat-empty' : ''}">${ultimoUsoTxt}</div>
         </div>
       </div>
 
