@@ -123,19 +123,19 @@ window.addEventListener('DOMContentLoaded', () => {
   initStickyCta();
 });
 
-// ─── HERO: ALTERNA VERSÃO PADRÃO/LOGADO ────────────────────────────────────
+// ─── HERO: BOAS-VINDAS + ATALHOS PARA CLIENTE LOGADO ───────────────────────
 function initHeroLogado() {
   try {
     const sess = (typeof getClienteSession === 'function') ? getClienteSession() : null;
     if (!sess || !sess.token) return;
-    const def  = document.getElementById('hero-default');
-    const log  = document.getElementById('hero-logado');
-    const name = document.getElementById('greet-name');
-    if (def) def.style.display = 'none';
-    if (log) log.style.display = 'block';
-    const nome = sess.apelido || sess.nome || sess.responsavel || 'cliente';
+    const greet  = document.getElementById('welcome-greet');
+    const quick  = document.getElementById('quick-actions');
+    const name   = document.getElementById('greet-name');
+    const nome   = sess.apelido || sess.nome || sess.responsavel || 'cliente';
     const primeiro = String(nome).trim().split(' ')[0];
-    if (name) name.textContent = primeiro;
+    if (name)  name.textContent = primeiro;
+    if (greet) greet.style.display = 'inline-flex';
+    if (quick) quick.style.display = 'grid';
   } catch(e) { /* sem sessão */ }
 }
 
