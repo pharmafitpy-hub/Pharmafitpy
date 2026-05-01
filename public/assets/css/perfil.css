@@ -91,6 +91,22 @@ body {
 .pf-empty-icon { font-size: 2.6rem; margin-bottom: 10px; }
 .pf-empty h3 { font-size: 1.05rem; font-weight: 700; color: var(--text); margin-bottom: 6px; }
 .pf-empty p { color: var(--gray); font-size: .88rem; max-width: 420px; margin: 0 auto 18px; }
+.pf-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, var(--accent), #B45309);
+  color: var(--dark, #0F0B1A);
+  border: none;
+  padding: 11px 22px;
+  border-radius: 8px;
+  font-size: .9rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: opacity .2s, transform .15s;
+  font-family: inherit;
+}
+.pf-btn-primary:hover { opacity: .88; transform: translateY(-1px); }
 
 .pf-btn-cta {
   display: inline-flex;
