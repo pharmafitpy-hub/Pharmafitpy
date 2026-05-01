@@ -189,6 +189,19 @@ function setTagFilter(tag) {
   activeTagFilter = tag;
   renderFilters();
   renderProducts();
+  // Scroll suave para a lista quando filtra por categoria
+  if (tag !== 'todos') {
+    setTimeout(() => {
+      const target = document.getElementById('cat-chip-bar') || document.getElementById('products-grid');
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 60);
+  } else {
+    // Volta pra "home" — scroll pro topo do panel1
+    setTimeout(() => {
+      const top = document.getElementById('hero-carousel') || document.getElementById('panel1');
+      if (top) top.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 60);
+  }
 }
 
 function setSort(mode) {
@@ -451,9 +464,12 @@ function startCountdowns() {
       // card do catálogo principal
       const el = document.getElementById('countdown-' + p.id);
       if (el) el.textContent = txt;
-      // tile dos destaques
+      // tile dos destaques (legado)
       const hl = document.getElementById('hl-countdown-' + p.id);
       if (hl) hl.textContent = '⏱ ' + txt;
+      // hero carrossel
+      const hh = document.getElementById('hero-countdown-' + p.id);
+      if (hh) hh.textContent = txt;
     });
   }, 1000);
 }
@@ -531,19 +547,60 @@ function changeVariantQty(id, varIdx, delta) {
 
 // ─── RENDER PRODUCTS ────────────────────────────────────────────────────────
 function renderProducts() {
-  // Ocultar destaques durante pesquisa
+  // Modo "navegação" (home) = sem busca E categoria=todos → mostra hero + categorias, esconde grid
+  // Modo "lista" = busca ativa OU categoria selecionada → esconde hero+cat, mostra grid
   const searching = !!activeSearch;
-  ['section-destaque','section-recomendado','catalog-divider'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = searching ? 'none' : '';
-  });
-  if (!searching) renderHighlights();
+  const filtering = activeTagFilter !== 'todos' || activeLabFilter !== 'todos';
+  const navMode   = !searching && !filtering;
+  // __all__ = "Ver tudo" — modo lista sem filtro de categoria; trata como categoria=todos pra match
+  const tagForMatch = activeTagFilter === '__all__' ? 'todos' : activeTagFilter;
 
-  const grid = document.getElementById('products-grid');
+  const hero      = document.getElementById('hero-carousel');
+  const catSec    = document.getElementById('cat-section');
+  const chipBar   = document.getElementById('cat-chip-bar');
+  const advWrap   = document.getElementById('adv-filters-wrap');
+  const grid      = document.getElementById('products-grid');
+  const empty     = document.getElementById('empty-state');
+
+  if (hero)    hero.style.display    = navMode ? '' : 'none';
+  if (catSec)  catSec.style.display  = navMode ? '' : 'none';
+  if (chipBar) chipBar.style.display = (filtering && !searching) ? 'flex' : 'none';
+  if (advWrap) advWrap.style.display = navMode ? 'none' : '';
+
+  if (navMode) {
+    renderHero();
+    renderCategoryTiles();
+    if (grid)  grid.style.display  = 'none';
+    if (empty) empty.style.display = 'none';
+    grid.innerHTML = '';
+    updateTotal();
+    return;
+  }
+
+  // Atualiza chip da categoria ativa
+  if (filtering && !searching) {
+    const cap = (s) => s.split(/[\s_-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    const lbl = document.getElementById('cat-chip-label');
+    const cnt = document.getElementById('cat-chip-count');
+    if (activeTagFilter === '__all__') {
+      if (lbl) lbl.textContent = 'Todos os produtos';
+      if (cnt) cnt.textContent = `${CATALOG.length} produto(s)`;
+    } else if (activeTagFilter !== 'todos') {
+      const cat = activeTagFilter;
+      const count = CATALOG.filter(p => String(p.categoria||'').toLowerCase() === cat).length;
+      if (lbl) lbl.textContent = cap(cat);
+      if (cnt) cnt.textContent = `${count} produto(s)`;
+    } else if (activeLabFilter !== 'todos') {
+      if (lbl) lbl.textContent = activeLabFilter;
+      const count = CATALOG.filter(p => p.lab === activeLabFilter).length;
+      if (cnt) cnt.textContent = `${count} produto(s)`;
+    }
+  }
+
   grid.innerHTML = '';
   let list = CATALOG.filter(p => {
     if (activeLabFilter !== 'todos' && p.lab !== activeLabFilter) return false;
-    if (activeTagFilter !== 'todos' && p.categoria !== activeTagFilter) return false;
+    if (tagForMatch !== 'todos' && String(p.categoria||'').toLowerCase() !== tagForMatch) return false;
     if (activeSearch) {
       const hay = [p.name, p.conc, p.lab, ...(p.tags||[])].join(' ').toLowerCase();
       if (!hay.includes(activeSearch)) return false;
@@ -559,9 +616,12 @@ function renderProducts() {
   }
 
   if (list.length === 0) {
-    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--gray)">Nenhum produto encontrado para este filtro.</div>`;
+    if (grid)  grid.style.display  = 'none';
+    if (empty) empty.style.display = 'block';
     updateTotal(); return;
   }
+  if (grid)  grid.style.display  = 'grid';
+  if (empty) empty.style.display = 'none';
 
   list.forEach(p => {
     const varIdx = selectedVariants[p.id] || 0;
@@ -672,68 +732,232 @@ function renderProducts() {
   startCountdowns();
 }
 
-function renderHighlights() {
-  const destaques    = CATALOG.filter(p => p.destaque === 'destaque');
-  const recomendados = CATALOG.filter(p => p.destaque === 'recomendado');
-  const secDest  = document.getElementById('section-destaque');
-  const secRec   = document.getElementById('section-recomendado');
-  const divider  = document.getElementById('catalog-divider');
-  secDest.style.display  = destaques.length    ? '' : 'none';
-  secRec.style.display   = recomendados.length ? '' : 'none';
-  divider.style.display  = (destaques.length || recomendados.length) ? '' : 'none';
-  function buildTile(p, badgeClass, badgeLabel, cardClass) {
-    const temVariantes = p.variantes && p.variantes.length > 0;
-    let promoRibbon = '', promoClass = '', priceHtml;
+// ─── HERO CARROSSEL ─────────────────────────────────────────────────────────
+let _heroIdx = 0;
+let _heroTimer = null;
+let _heroSlides = [];
 
-    if (temVariantes) {
-      const precos = p.variantes.map(v => parseFloat(v.preco) || 0).filter(v => v > 0);
-      const minPreco = precos.length ? Math.min(...precos) : 0;
-      const varPromos = p.variantes.filter(v => parseFloat(v.promo_preco) > 0 && isPromoDentroData(p));
-      if (varPromos.length > 0) {
-        const minPromo = Math.min(...varPromos.map(v => parseFloat(v.promo_preco)));
-        const varOriginal = Math.min(...varPromos.map(v => parseFloat(v.preco)));
-        promoRibbon = `<div class="promo-ribbon">🔥 Promoção</div>`;
-        promoClass  = 'promo-ativa';
-        priceHtml   = `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;margin-top:4px">
-           <span style="font-size:.65rem;color:var(--gray)">A partir de</span>
-           <span style="font-size:.7rem;color:var(--gray);text-decoration:line-through">R$ ${varOriginal.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
-           <span class="hl-card-price" style="color:#F59E0B">R$ ${minPromo.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
-           <span id="hl-countdown-${escAttr(p.id)}" style="font-size:.63rem;color:#F59E0B;font-weight:600">⏱ ${getCountdown(p.promo_fim)}</span>
-         </div>`;
-      } else {
-        priceHtml = `<div style="margin-top:4px">
-          <span style="font-size:.62rem;color:var(--gray)">A partir de</span>
-          <div class="hl-card-price">R$ ${minPreco.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
-        </div>`;
-      }
-    } else {
-      const price = getEffectivePrice(p);
-      const promo = isPromoAtiva(p);
-      promoRibbon = promo ? `<div class="promo-ribbon">🔥 Promoção</div>` : '';
-      promoClass  = promo ? 'promo-ativa' : '';
-      priceHtml   = promo
-        ? `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;margin-top:4px">
-             <span style="font-size:.7rem;color:var(--gray);text-decoration:line-through">R$ ${p.price.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
-             <span class="hl-card-price" style="color:#F59E0B">R$ ${price.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
-             <span id="hl-countdown-${escAttr(p.id)}" style="font-size:.63rem;color:#F59E0B;font-weight:600">⏱ ${getCountdown(p.promo_fim)}</span>
-           </div>`
-        : `<div class="hl-card-price">R$ ${price.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>`;
-    }
-    return `<div class="hl-card ${cardClass} ${promoClass}" onclick="scrollToCard('${escAttr(p.id)}')">
-      ${promoRibbon}
-      <span class="${badgeClass}">${badgeLabel}</span>
-      <span class="hl-card-icon">${esc(p.icon)}</span>
-      <div class="hl-card-name">${esc(p.name)}</div>
-      <div class="hl-card-conc">${esc(p.conc)}</div>
-      ${priceHtml}
-      <div class="hl-card-hint">Toque para ver no catálogo →</div>
-    </div>`;
+function renderHero() {
+  const track = document.getElementById('hero-track');
+  const dotsEl = document.getElementById('hero-dots');
+  const hero = document.getElementById('hero-carousel');
+  if (!track || !hero) return;
+
+  // Monta slides: promoções ativas + destaques + recomendados (ordem de prioridade)
+  const promos      = CATALOG.filter(p => isPromoAtiva(p));
+  const destaques   = CATALOG.filter(p => p.destaque === 'destaque' && !promos.includes(p));
+  const recomendados= CATALOG.filter(p => p.destaque === 'recomendado' && !promos.includes(p) && !destaques.includes(p));
+
+  const slides = [];
+  promos.forEach(p      => slides.push({ p, theme: 'promo',      badge: '🔥 Promoção' }));
+  destaques.forEach(p   => slides.push({ p, theme: 'destaque',   badge: '⭐ Destaque' }));
+  recomendados.forEach(p=> slides.push({ p, theme: 'recomendado',badge: '💡 Recomendado' }));
+
+  _heroSlides = slides;
+  if (slides.length === 0) { hero.style.display = 'none'; return; }
+
+  track.innerHTML = slides.map((s, i) => {
+    const p = s.p;
+    const promoAtiva = isPromoAtiva(p);
+    const price = getEffectivePrice(p);
+    const oldPrice = (promoAtiva && p.price > price)
+      ? `<span class="hero-slide-price-old">R$ ${p.price.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>`
+      : '';
+    const countdown = promoAtiva
+      ? `<div class="hero-slide-countdown">⏱ <span id="hero-countdown-${escAttr(p.id)}">${getCountdown(p.promo_fim)}</span></div>`
+      : '';
+    return `
+      <div class="hero-slide theme-${s.theme}" data-idx="${i}" onclick="abrirProdutoDoHero('${escAttr(p.id)}')">
+        <div class="hero-slide-icon">${esc(p.icon || '💊')}</div>
+        <div class="hero-slide-content">
+          <span class="hero-slide-badge">${s.badge}</span>
+          <div class="hero-slide-title">${esc(p.name)}</div>
+          ${p.conc ? `<div class="hero-slide-sub">${esc(p.conc)}</div>` : ''}
+          <div class="hero-slide-price-row">
+            ${oldPrice}
+            <span class="hero-slide-price">R$ ${price.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+          </div>
+          ${countdown}
+          <span class="hero-slide-cta">Ver produto →</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  if (dotsEl) {
+    dotsEl.innerHTML = slides.map((_, i) =>
+      `<button class="hero-dot ${i===0?'active':''}" onclick="heroGo(${i})" aria-label="Slide ${i+1}"></button>`
+    ).join('');
   }
-  document.getElementById('grid-destaque').innerHTML =
-    destaques.map(p => buildTile(p,'hl-badge-destaque','⭐ Destaque','card-destaque')).join('');
-  document.getElementById('grid-recomendado').innerHTML =
-    recomendados.map(p => buildTile(p,'hl-badge-recomendado','💡 Recomendado','card-recomendado')).join('');
+
+  // Esconde flechas e dots se só tem 1 slide
+  const arrowL = hero.querySelector('.hero-arrow-left');
+  const arrowR = hero.querySelector('.hero-arrow-right');
+  const single = slides.length <= 1;
+  if (arrowL) arrowL.style.display = single ? 'none' : '';
+  if (arrowR) arrowR.style.display = single ? 'none' : '';
+  if (dotsEl) dotsEl.style.display = single ? 'none' : '';
+
+  // Sincroniza dots com scroll
+  track.onscroll = () => {
+    const w = track.clientWidth;
+    const idx = Math.round(track.scrollLeft / w);
+    if (idx !== _heroIdx) {
+      _heroIdx = idx;
+      const dots = dotsEl ? dotsEl.querySelectorAll('.hero-dot') : [];
+      dots.forEach((d,i) => d.classList.toggle('active', i === idx));
+    }
+  };
+
+  startHeroAutoplay();
+
+  // Pausa auto-play no hover
+  hero.onmouseenter = () => stopHeroAutoplay();
+  hero.onmouseleave = () => startHeroAutoplay();
 }
+
+function heroGo(i) {
+  const track = document.getElementById('hero-track');
+  if (!track || !_heroSlides.length) return;
+  _heroIdx = (i + _heroSlides.length) % _heroSlides.length;
+  track.scrollTo({ left: _heroIdx * track.clientWidth, behavior: 'smooth' });
+}
+
+function heroNav(delta) {
+  if (!_heroSlides.length) return;
+  heroGo(_heroIdx + delta);
+  // Reset autoplay timer ao navegar manualmente
+  stopHeroAutoplay();
+  startHeroAutoplay();
+}
+
+function startHeroAutoplay() {
+  stopHeroAutoplay();
+  if (_heroSlides.length <= 1) return;
+  _heroTimer = setInterval(() => heroGo(_heroIdx + 1), 5000);
+}
+
+function stopHeroAutoplay() {
+  if (_heroTimer) { clearInterval(_heroTimer); _heroTimer = null; }
+}
+
+// ─── CATEGORIAS EM DESTAQUE ─────────────────────────────────────────────────
+// Ícones padrão por categoria (fallback). Se não bater, usa o ícone do 1º produto da categoria.
+const CAT_ICONS = {
+  emagrecimento: '🔥',
+  performance:   '💪',
+  estetica:      '✨',
+  estética:      '✨',
+  hormonios:     '🧬',
+  hormônios:     '🧬',
+  recovery:      '🛌',
+  imunidade:     '🛡️',
+  longevidade:   '⏳',
+  cognitiva:     '🧠',
+  pele:          '💅',
+  cabelo:        '💇',
+  feminino:      '🌸',
+  masculino:     '⚡',
+  pre_treino:    '🏋️',
+  pos_treino:    '🥤',
+};
+
+function renderCategoryTiles() {
+  const grid = document.getElementById('cat-grid');
+  const sec  = document.getElementById('cat-section');
+  if (!grid || !sec) return;
+
+  // Agrupa produtos por categoria
+  const byCat = {};
+  CATALOG.forEach(p => {
+    const c = String(p.categoria || '').trim().toLowerCase();
+    if (!c) return;
+    (byCat[c] = byCat[c] || []).push(p);
+  });
+
+  const cats = Object.keys(byCat).sort();
+  if (cats.length === 0) { sec.style.display = 'none'; return; }
+
+  const cap = (s) => s.split(/[\s_-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+  grid.innerHTML = cats.map((cat, i) => {
+    const items = byCat[cat];
+    const icon = CAT_ICONS[cat] || (items[0] && items[0].icon) || '💊';
+    const tone = (i % 10);
+    return `
+      <div class="cat-tile tone-${tone}" onclick="setTagFilter('${escAttr(cat)}')">
+        <div class="cat-tile-icon">${esc(icon)}</div>
+        <div>
+          <div class="cat-tile-name">${esc(cap(cat))}</div>
+          <div class="cat-tile-count">${items.length} produto(s)</div>
+        </div>
+      </div>`;
+  }).join('') + `
+    <div class="cat-tile tile-all" onclick="verTodosProdutos()">
+      <div class="cat-tile-icon">📦</div>
+      <div>
+        <div class="cat-tile-name">Ver tudo</div>
+        <div class="cat-tile-count">${CATALOG.length} produto(s)</div>
+      </div>
+    </div>`;
+}
+
+function abrirProdutoDoHero(id) {
+  // Click num slide do hero: garante que o card esteja no DOM (modo lista),
+  // depois faz scroll suave + pulse, e abre protocolo se houver.
+  const navMode = !activeSearch && activeTagFilter === 'todos' && activeLabFilter === 'todos';
+  if (navMode) {
+    activeTagFilter = '__all__';
+    renderProducts();
+  }
+  setTimeout(() => {
+    scrollToCard(id);
+    if (typeof PROTOCOLS !== 'undefined' && PROTOCOLS && PROTOCOLS[id] && typeof abrirProtocolo === 'function') {
+      abrirProtocolo(id);
+    }
+  }, 80);
+}
+
+function verTodosProdutos() {
+  // "Todos" não usa filtro de categoria — mostra catálogo inteiro com filtros avançados
+  activeTagFilter = 'todos';
+  activeLabFilter = 'todos';
+  // Trick pra entrar no modo "lista" sem categoria selecionada: aciona busca vazia? Não.
+  // Vamos usar uma categoria especial "__all__" pra indicar "modo lista, sem filtro de categoria"
+  activeTagFilter = '__all__';
+  renderProducts();
+  setTimeout(() => {
+    const grid = document.getElementById('products-grid');
+    if (grid) grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 50);
+}
+
+function onSearchInput(val) {
+  activeSearch = (val || '').toLowerCase().trim();
+  const clr = document.getElementById('search-clear-btn');
+  if (clr) clr.style.display = activeSearch ? 'flex' : 'none';
+  renderProducts();
+}
+
+function clearSearch() {
+  const inp = document.getElementById('product-search');
+  if (inp) inp.value = '';
+  activeSearch = '';
+  const clr = document.getElementById('search-clear-btn');
+  if (clr) clr.style.display = 'none';
+  renderProducts();
+}
+
+function toggleAdvFilters() {
+  const body  = document.getElementById('adv-filters-body');
+  const arrow = document.getElementById('adv-filters-arrow');
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'flex';
+  if (arrow) arrow.classList.toggle('open', !open);
+}
+
+// renderHighlights foi substituído por renderHero + renderCategoryTiles.
+function renderHighlights() { /* no-op (legado) */ }
 
 function scrollToCard(id) {
   const el = document.getElementById('pc-' + id);
