@@ -230,12 +230,8 @@ async function _pfRequest(action, params, _retried) {
   const sess = _pfSess || (typeof getClienteSession === 'function' ? getClienteSession() : null);
   const token = (params && params.token) || (sess && sess.token) || '';
   const fullParams = Object.assign({}, params || {}, { token });
-  let data;
-  try {
-    data = await _pfRequest(action, fullParams);
-  } catch (e) {
-    throw e;
-  }
+  // Chama o backend (cliPost_ é o helper bruto exposto por cliente_auth.js)
+  const data = await cliPost_(action, fullParams);
   if (_pfIsSessaoExpirada(data) && !_retried) {
     try {
       await _pfReautenticar();
