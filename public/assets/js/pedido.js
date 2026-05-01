@@ -1754,11 +1754,25 @@ function fecharPopupPrazo() {
 setTimeout(fecharPopupPrazo, 8000);
 
 // ─── CÓDIGO DE INDICAÇÃO (digitado pelo comprador) ──────────────────────────
-// Validação só de formato (LP-XXXXXX ou apelido-XXXXXX com 6 hex no fim).
-// Validação real (indicador existe, anti-fraude) é server-side em salvar().
-function validarIndicacao() {
-  const input = document.getElementById('f_indicacao');
-  const msg   = document.getElementById('indicacao-msg');
+// Validação completa server-side: formato + indicador existe + anti-fraude
+// (self-ref, vendedora stacking, primeira-compra). Mostra mensagem específica
+// pra cada motivo de rejeição.
+const INDICACAO_MOTIVOS = {
+  formato_invalido:        '❌ Formato inválido. Use o código completo (ex: joao-A4F7K2).',
+  indicador_nao_encontrado: '❌ Código não encontrado. Confira se digitou certo.',
+  self_ref_email:          '❌ Você não pode usar o seu próprio código de indicação.',
+  self_ref_cpf:            '❌ Esse código pertence ao seu CPF — não pode usar.',
+  self_ref_tel:            '❌ Esse código pertence ao seu telefone — não pode usar.',
+  indicador_e_vendedora:   '❌ Esse código pertence a uma vendedora. Vendedoras não participam do programa de indicação.',
+  ja_usou_indicacao:       '❌ Você já usou um código de indicação antes. O benefício é válido só na primeira compra.',
+  sem_clientes:            '❌ Sistema indisponível. Tente novamente em alguns minutos.',
+  sem_coluna_cliente_id:   '❌ Sistema indisponível. Tente novamente em alguns minutos.',
+  erro_interno:            '⚠️ Erro ao validar. Tente novamente.',
+};
+
+async function validarIndicacao() {
+  const input  = document.getElementById('f_indicacao');
+  const msg    = document.getElementById('indicacao-msg');
   const btnApl = document.getElementById('btn-indicacao');
   const btnRem = document.getElementById('btn-remover-indicacao');
   if (!input) return;
@@ -1767,19 +1781,43 @@ function validarIndicacao() {
     if (msg) { msg.textContent = '⚠️ Digite ou cole um código.'; msg.style.color = '#FCA5A5'; }
     return;
   }
-  // Aceita "LP-A4F7K2", "joao-A4F7K2", "MARIA-SILVA-A4F7K2", "A4F7K2"
-  const m = codigo.match(/([A-F0-9]{6})$/);
-  if (!m) {
-    if (msg) { msg.textContent = '❌ Formato inválido. Use o código completo (ex: joao-A4F7K2).'; msg.style.color = '#FCA5A5'; }
+  // Pre-check de formato (rápido, sem rede)
+  if (!codigo.match(/([A-F0-9]{6})$/)) {
+    if (msg) { msg.textContent = INDICACAO_MOTIVOS.formato_invalido; msg.style.color = '#FCA5A5'; }
     return;
   }
-  // Trava input + mostra confirmação
-  input.disabled = true;
-  if (btnApl) btnApl.classList.add('hidden');
-  if (btnRem) btnRem.classList.remove('hidden');
-  if (msg) {
-    msg.innerHTML = `✅ Código <strong>${codigo}</strong> aplicado!`;
-    msg.style.color = '#22C55E';
+  // Estado loading
+  if (msg) { msg.textContent = '⏳ Validando código…'; msg.style.color = '#9CA3AF'; }
+  if (btnApl) btnApl.disabled = true;
+  // Coleta dados do comprador (do form OU sessão)
+  const sess = (typeof getClienteSession === 'function') ? getClienteSession() : null;
+  const params = new URLSearchParams({
+    action: 'validar_indicacao',
+    codigo,
+    token: sess?.token || '',
+    email: document.getElementById('f_email')?.value || '',
+    cpf:   document.getElementById('f_documento')?.value || '',
+    tel:   document.getElementById('f_telefone')?.value || '',
+  });
+  try {
+    const r = await fetch(`${SHEETS_URL}?${params.toString()}`);
+    const data = await r.json().catch(() => null);
+    if (data && data.ok) {
+      // Aplica + trava
+      input.disabled = true;
+      if (btnApl) { btnApl.disabled = false; btnApl.classList.add('hidden'); }
+      if (btnRem) btnRem.classList.remove('hidden');
+      if (msg) { msg.innerHTML = `✅ Código <strong>${codigo}</strong> aplicado!`; msg.style.color = '#22C55E'; }
+    } else {
+      // Mostra motivo específico
+      const motivo = data?.motivo || 'erro_interno';
+      const text = INDICACAO_MOTIVOS[motivo] || `❌ Código não pôde ser aplicado (${motivo}).`;
+      if (msg) { msg.textContent = text; msg.style.color = '#FCA5A5'; }
+      if (btnApl) btnApl.disabled = false;
+    }
+  } catch (e) {
+    if (msg) { msg.textContent = '⚠️ Erro de conexão. Tente novamente.'; msg.style.color = '#FCA5A5'; }
+    if (btnApl) btnApl.disabled = false;
   }
 }
 
