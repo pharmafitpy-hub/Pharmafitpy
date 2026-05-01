@@ -1734,10 +1734,41 @@ function renderCouponDrawer(c) {
     validadeTxt = c.validade;
   }
 
+  // Lista de produtos com preços (original vs com desconto)
   let prodTxt = 'Todos os produtos';
-  if (c.produtos && c.produtos !== 'todos') {
-    const n = c.produtos.split(',').filter(Boolean).length;
-    prodTxt = `${n} produto${n !== 1 ? 's' : ''} específico${n !== 1 ? 's' : ''}`;
+  let produtosLista = []; // [{id, nome, precoOrig, precoCom}]
+  const isFixo = c.tipo === 'fixo';
+  const todosProdutos = !c.produtos || c.produtos === 'todos';
+
+  if (isFixo && c.precos) {
+    // Formato: "p1:100|p2:200"
+    String(c.precos).split('|').filter(Boolean).forEach(pair => {
+      const parts = pair.split(':');
+      const key = (parts[0]||'').trim();
+      const valor = parseFloat(parts[1]||0) || 0;
+      const id = key.split('__')[0];
+      const prod = (App.produtos||[]).find(p => p.id === id);
+      if (!prod) return;
+      const precoOrig = parseFloat(prod.preco) || 0;
+      produtosLista.push({ id: key, nome: prod.nome + (key.includes('__') ? ` (var ${key.split('__')[1]})` : ''), precoOrig, precoCom: valor });
+    });
+    prodTxt = `${produtosLista.length} produto${produtosLista.length !== 1 ? 's' : ''} com preço fixo`;
+  } else if (!todosProdutos) {
+    // tipo='%' com lista — desconto aplica em cada
+    const ids = c.produtos.split(',').map(s=>s.trim()).filter(Boolean);
+    const pct = parseFloat(c.valor) || 0;
+    ids.forEach(key => {
+      const id = key.split('__')[0];
+      const prod = (App.produtos||[]).find(p => p.id === id);
+      if (!prod) return;
+      const precoOrig = parseFloat(prod.preco) || 0;
+      const precoCom = +(precoOrig * (1 - pct/100)).toFixed(2);
+      produtosLista.push({ id: key, nome: prod.nome, precoOrig, precoCom });
+    });
+    prodTxt = `${produtosLista.length} produto${produtosLista.length !== 1 ? 's' : ''} específico${produtosLista.length !== 1 ? 's' : ''}`;
+  } else if (c.tipo === '%') {
+    // tipo='%' com 'todos' — não mostra lista (aplica em tudo)
+    prodTxt = `Todos os produtos · ${esc(c.valor)}% off`;
   }
 
   const benefits = [];
@@ -1750,7 +1781,44 @@ function renderCouponDrawer(c) {
   const receitaTxt = receita > 0
     ? `R$ ${receita.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}`
     : '—';
+  const desconto = (c.desconto_total||0);
+  const descontoTxt = desconto > 0
+    ? `R$ ${desconto.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}`
+    : '—';
   const ultimoUsoTxt = c.ultimo_uso || '—';
+
+  // Tabela de produtos do cupom (expansível se > 5)
+  const fmtBrl = v => 'R$ ' + (parseFloat(v||0)).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  let produtosBlock = '';
+  if (produtosLista.length > 0) {
+    const colapsavel = produtosLista.length > 5;
+    const rowsHtml = produtosLista.map(p => {
+      const desc = isFixo
+        ? Math.max(0, p.precoOrig - p.precoCom)
+        : (p.precoOrig - p.precoCom);
+      const pct  = p.precoOrig > 0 ? Math.round((desc / p.precoOrig) * 100) : 0;
+      return `<div class="cd-prod-row">
+        <div class="cd-prod-name">${esc(p.nome)}</div>
+        <div class="cd-prod-prices">
+          <span class="cd-prod-orig">${fmtBrl(p.precoOrig)}</span>
+          <span class="cd-prod-arrow">→</span>
+          <span class="cd-prod-final">${fmtBrl(p.precoCom)}</span>
+          ${pct > 0 ? `<span class="cd-prod-pct">−${pct}%</span>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+
+    produtosBlock = `
+      <div class="cd-section">
+        <div class="cd-section-title-row">
+          <span class="cd-section-title">Produtos do cupom (${produtosLista.length})</span>
+          ${colapsavel ? `<button class="cd-toggle-prods" onclick="toggleCupomProdutos(this)" data-open="false">Ver todos ▼</button>` : ''}
+        </div>
+        <div class="cd-prod-list ${colapsavel ? 'cd-prod-collapsed' : ''}">
+          ${rowsHtml}
+        </div>
+      </div>`;
+  }
 
   drawer.innerHTML = `
     <div class="drawer-header">
@@ -1781,7 +1849,7 @@ function renderCouponDrawer(c) {
 
       <div class="cd-section">
         <div class="cd-section-title">Performance</div>
-        <div class="cd-stats-grid">
+        <div class="cd-stats-grid cd-stats-grid-2x2">
           <div class="cd-stat-box">
             <div class="cd-stat-label">Usos</div>
             <div class="cd-stat-value">${c.usos||0}</div>
@@ -1789,6 +1857,10 @@ function renderCouponDrawer(c) {
           <div class="cd-stat-box">
             <div class="cd-stat-label">Receita gerada</div>
             <div class="cd-stat-value cd-stat-revenue">${receitaTxt}</div>
+          </div>
+          <div class="cd-stat-box">
+            <div class="cd-stat-label">Desconto dado</div>
+            <div class="cd-stat-value cd-stat-discount ${desconto===0?'cs-empty':''}">${descontoTxt}</div>
           </div>
           <div class="cd-stat-box">
             <div class="cd-stat-label">Último uso</div>
@@ -1806,6 +1878,8 @@ function renderCouponDrawer(c) {
         <div class="cd-section-title">Produtos aplicáveis</div>
         <div class="cd-section-content">📦 ${esc(prodTxt)}</div>
       </div>
+
+      ${produtosBlock}
 
       ${benefits.length ? `
       <div class="cd-section">
@@ -1829,6 +1903,15 @@ function renderCouponDrawer(c) {
       <button class="btn-sm btn-xs-danger"
         onclick="apagarCupomAdmin('${escAttr(c.codigo)}'); closeCouponDrawer();">🗑️ Apagar cupom</button>
     </div>`;
+}
+
+function toggleCupomProdutos(btn) {
+  const list = btn.closest('.cd-section').querySelector('.cd-prod-list');
+  if (!list) return;
+  const open = btn.dataset.open === 'true';
+  list.classList.toggle('cd-prod-collapsed', open);
+  btn.dataset.open = open ? 'false' : 'true';
+  btn.textContent = open ? 'Ver todos ▼' : 'Recolher ▲';
 }
 
 function toggleFormCupom() {
