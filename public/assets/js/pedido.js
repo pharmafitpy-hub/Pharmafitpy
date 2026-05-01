@@ -1454,28 +1454,26 @@ async function _sendWhatsAppCore(btnWA, _btnHtmlOrig) {
     carrinho:      JSON.stringify(cart),
     cliente_token: _cliSess?.token || '',
   });
-  // Salva pedido. O backend já decrementa o estoque internamente — não precisa
-  // chamar action=decrementar_estoque separadamente.
-  try {
-    const r = await fetch(`${SHEETS_URL}?${params.toString()}`);
-    const data = await r.json().catch(() => null);
-    if (!data || data.ok === false) {
-      console.warn('Pedido pode não ter sido salvo:', data);
-    }
-  } catch (err) {
-    // Falha de rede/CORS: pedido pode não ter sido salvo. Segue o fluxo do
-    // WhatsApp pra não bloquear o cliente, mas avisa no console.
-    console.warn('Erro ao enviar pedido ao backend:', err);
-  }
+  // CRÍTICO: window.open precisa rodar DENTRO da user gesture chain (sem await
+  // antes), senão o browser bloqueia popup. Por isso disparamos fetch sem
+  // await (fire-and-forget) e abrimos o WhatsApp na sequência síncrona.
+  fetch(`${SHEETS_URL}?${params.toString()}`)
+    .then(r => r.json().catch(() => null))
+    .then(data => {
+      if (!data || data.ok === false) console.warn('Pedido pode não ter sido salvo:', data);
+      else if (data.indicacao && !data.indicacao.aplicada && document.getElementById('f_indicacao')?.value) {
+        // Loga motivo da rejeição da indicação pra debug
+        console.warn('Indicação rejeitada pelo backend:', data.indicacao.motivo_rejeicao || 'motivo desconhecido');
+      }
+    })
+    .catch(err => console.warn('Erro ao enviar pedido ao backend:', err));
 
-  // Abrir WhatsApp
+  // Abrir WhatsApp imediatamente (síncrono em relação ao click → sem popup block)
   const encoded = encodeURIComponent(msg);
   const wa = (typeof CLIENT !== 'undefined' && CLIENT.wa) ? CLIENT.wa : WA_NUMBER;
   if (wa) window.open(`https://wa.me/${wa}?text=${encoded}`, '_blank');
 
-  // Mostrar sucesso. Não reativa o botão — `showSuccess` troca de tela
-  // (success-screen). Se o cliente quiser fazer outro pedido, `newOrder()`
-  // recarrega o form do zero. _sendingPedido fica true por segurança.
+  // Mostrar tela de sucesso
   showSuccess();
   // Reset do flag pra permitir novo pedido após showSuccess (se o user voltar)
   _sendingPedido = false;
