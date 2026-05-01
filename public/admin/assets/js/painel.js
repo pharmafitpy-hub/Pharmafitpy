@@ -1653,40 +1653,87 @@ function _diasRestantes(validade) {
 function _buildCupomCard(c) {
   const isAtivo = c.status === 'Ativo';
   const isExp   = c.status === 'Expirado';
-  // Tipo curto pra mostrar no header
   const tipoCompacto = c.tipo === '%'
     ? `${esc(c.valor)}% desc.`
     : 'Preço fixo';
 
-  // Receita
   const receita = (c.receita_gerada||0);
   const receitaTxt = receita > 0
     ? `R$ ${receita.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}`
     : '—';
 
-  // Último uso
   const ultimoUso = c.ultimo_uso || '';
   const ultimoUsoTxt = ultimoUso ? esc(ultimoUso.split(' ')[0]) : '—';
 
-  // Vendedora (NOME, fallback pra email curto)
   const nomeVend = c.vendedora_nome || c.vendedora || '';
   const vendInic = nomeVend ? nomeVend.trim().split(/\s+/).slice(0,2).map(p=>p.charAt(0).toUpperCase()).join('') : '?';
   const vendDisplay = nomeVend || 'Sem vendedora';
 
-  // Validade (badge dentro do detalhe)
+  return `
+    <div class="cup-card ${isAtivo ? 'cc-ativo' : (isExp ? 'cc-expirado' : 'cc-desativado')}"
+         onclick="openCouponDrawer('${escAttr(c.codigo)}')">
+      <div class="cup-card-head">
+        <span class="cup-card-code">${esc(c.codigo)}</span>
+        <span class="cc-status cc-status-${isAtivo?'on':(isExp?'exp':'off')}">${esc(c.status)}</span>
+      </div>
+      <div class="cup-card-tipo">${tipoCompacto}</div>
+      <div class="cup-card-vend">
+        <span class="cc-vend-avatar">${esc(vendInic)}</span>
+        <span class="cup-card-vend-name">${esc(vendDisplay)}</span>
+      </div>
+      <div class="cup-card-stats">
+        <div class="cs-cell">
+          <div class="cs-cell-label">Usos</div>
+          <div class="cs-cell-val ${(c.usos||0)===0?'cs-empty':''}">${c.usos||0}</div>
+        </div>
+        <div class="cs-cell">
+          <div class="cs-cell-label">Receita</div>
+          <div class="cs-cell-val cs-cell-revenue ${receita===0?'cs-empty':''}">${receitaTxt}</div>
+        </div>
+        <div class="cs-cell">
+          <div class="cs-cell-label">Último uso</div>
+          <div class="cs-cell-val ${!ultimoUso?'cs-empty':''}">${ultimoUsoTxt}</div>
+        </div>
+      </div>
+      <div class="cup-card-hint">Clique pra ver detalhes →</div>
+    </div>`;
+}
+
+// ─── COUPON DRAWER ─────────────────────────────────────────────────────────
+function openCouponDrawer(codigo) {
+  const c = (App.cupons || []).find(x => String(x.codigo).toUpperCase() === String(codigo).toUpperCase());
+  if (!c) return;
+  renderCouponDrawer(c);
+  document.getElementById('coupon-drawer').classList.add('open');
+  document.getElementById('coupon-drawer-overlay').classList.add('show');
+}
+
+function closeCouponDrawer() {
+  document.getElementById('coupon-drawer').classList.remove('open');
+  document.getElementById('coupon-drawer-overlay').classList.remove('show');
+}
+
+function renderCouponDrawer(c) {
+  const isAtivo = c.status === 'Ativo';
+  const isExp   = c.status === 'Expirado';
+  const drawer = document.getElementById('coupon-drawer');
+  if (!drawer) return;
+
   const dias = _diasRestantes(c.validade);
-  let validadeBadge = '';
+  let validadeTxt = '—';
+  let validadeCls = '';
   if (c.validade === '—' || /indeterminado/i.test(c.validade)) {
-    validadeBadge = `<span class="cc-validade cc-val-permanente">♾️ Sem expiração</span>`;
+    validadeTxt = '♾️ Sem expiração';
+    validadeCls = 'cc-val-permanente';
   } else if (dias != null) {
-    const cls = dias < 0 ? 'cc-val-exp' : (dias <= 7 ? 'cc-val-warn' : 'cc-val-ok');
-    const txt = dias < 0 ? `Expirado há ${Math.abs(dias)}d` : (dias === 0 ? 'Expira hoje' : `${dias}d restantes`);
-    validadeBadge = `<span class="cc-validade ${cls}">📅 ${esc(txt)}</span>`;
+    if (dias < 0)       { validadeTxt = `Expirado há ${Math.abs(dias)}d`; validadeCls = 'cc-val-exp'; }
+    else if (dias === 0){ validadeTxt = 'Expira hoje';                     validadeCls = 'cc-val-warn'; }
+    else if (dias <= 7) { validadeTxt = `${dias}d restantes (${esc(c.validade)})`; validadeCls = 'cc-val-warn'; }
+    else                { validadeTxt = `${dias}d restantes (${esc(c.validade)})`; validadeCls = 'cc-val-ok'; }
   } else if (c.validade) {
-    validadeBadge = `<span class="cc-validade">📅 ${esc(c.validade)}</span>`;
+    validadeTxt = c.validade;
   }
 
-  // Produtos aplicáveis
   let prodTxt = 'Todos os produtos';
   if (c.produtos && c.produtos !== 'todos') {
     const n = c.produtos.split(',').filter(Boolean).length;
@@ -1694,71 +1741,94 @@ function _buildCupomCard(c) {
   }
 
   const benefits = [];
-  if (c.parcelamento === 'SIM') benefits.push(`<span class="cc-benefit">💳 3x sem juros</span>`);
-  if (c.freteAcima) benefits.push(`<span class="cc-benefit">🚚 Frete grátis acima de R$ ${esc(c.freteAcima)}</span>`);
+  if (c.parcelamento === 'SIM') benefits.push('💳 Parcelamento 3x sem juros');
+  if (c.freteAcima) benefits.push(`🚚 Frete grátis acima de R$ ${esc(c.freteAcima)}`);
 
-  // Email da vendedora (mostrado em pequeno no detalhe se for email)
-  const vendEmailLine = c.vendedora_email
-    ? `<div class="cd-line"><span class="cd-key">Email da vendedora</span><span class="cd-val">${esc(c.vendedora_email)}</span></div>`
-    : '';
+  const nomeVend = c.vendedora_nome || c.vendedora || '';
+  const vendInic = nomeVend ? nomeVend.trim().split(/\s+/).slice(0,2).map(p=>p.charAt(0).toUpperCase()).join('') : '?';
+  const receita = (c.receita_gerada||0);
+  const receitaTxt = receita > 0
+    ? `R$ ${receita.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}`
+    : '—';
+  const ultimoUsoTxt = c.ultimo_uso || '—';
 
-  const criadoLine = c.criado
-    ? `<div class="cd-line"><span class="cd-key">Criado em</span><span class="cd-val">${esc(c.criado)}</span></div>`
-    : '';
-
-  return `
-    <div class="cup-row ${isAtivo ? 'cc-ativo' : (isExp ? 'cc-expirado' : 'cc-desativado')}" data-codigo="${escAttr(c.codigo)}">
-      <div class="cup-row-head" onclick="toggleCupomDetalhe(this)">
-        <span class="cup-row-toggle">▶</span>
+  drawer.innerHTML = `
+    <div class="drawer-header">
+      <div class="cd-h-left">
+        <div class="cd-h-code">${esc(c.codigo)}</div>
         <span class="cc-status cc-status-${isAtivo?'on':(isExp?'exp':'off')}">${esc(c.status)}</span>
-        <span class="cup-row-code">${esc(c.codigo)}</span>
-        <span class="cup-row-tipo">${tipoCompacto}</span>
-        <span class="cup-row-vend">
-          <span class="cc-vend-avatar">${esc(vendInic)}</span>
-          <span class="cup-row-vend-name">${esc(vendDisplay)}</span>
-        </span>
-        <span class="cup-row-stat">
-          <span class="cs-mini-label">Usos</span>
-          <strong class="cs-mini-val">${c.usos||0}</strong>
-        </span>
-        <span class="cup-row-stat">
-          <span class="cs-mini-label">Receita</span>
-          <strong class="cs-mini-val cs-mini-revenue">${receitaTxt}</strong>
-        </span>
-        <span class="cup-row-stat">
-          <span class="cs-mini-label">Último uso</span>
-          <strong class="cs-mini-val">${ultimoUsoTxt}</strong>
-        </span>
       </div>
-      <div class="cup-row-body" style="display:none">
-        <div class="cup-detalhes">
-          ${validadeBadge ? `<div class="cd-row">${validadeBadge}<span class="cc-prod-badge">📦 ${esc(prodTxt)}</span></div>` : `<div class="cd-row"><span class="cc-prod-badge">📦 ${esc(prodTxt)}</span></div>`}
-          ${benefits.length ? `<div class="cc-benefits">${benefits.join('')}</div>` : ''}
-          ${vendEmailLine}
-          ${criadoLine}
-          <div class="cd-actions">
-            <button class="btn-xs ${isAtivo ? 'btn-xs-danger' : 'btn-xs-accent'}"
-              onclick="toggleCupomAdmin('${escAttr(c.codigo)}','${c.status}')">
-              ${isAtivo ? '⏸ Desativar' : '▶ Ativar'}
-            </button>
-            <button class="btn-xs btn-xs-danger"
-              onclick="apagarCupomAdmin('${escAttr(c.codigo)}')">🗑️ Apagar</button>
+      <button class="modal-close" onclick="closeCouponDrawer()" aria-label="Fechar">✕</button>
+    </div>
+    <div class="cd-body">
+      <div class="cd-section">
+        <div class="cd-section-title">Tipo de desconto</div>
+        <div class="cd-section-content cd-tipo-big">
+          ${c.tipo === '%' ? `<strong>${esc(c.valor)}%</strong> de desconto` : '<strong>Preço fixo</strong> por produto'}
+        </div>
+      </div>
+
+      <div class="cd-section">
+        <div class="cd-section-title">Vendedora</div>
+        <div class="cd-vend-box">
+          <span class="cc-vend-avatar cc-vend-avatar-lg">${esc(vendInic)}</span>
+          <div class="cd-vend-info">
+            <div class="cd-vend-name">${esc(nomeVend || 'Sem vendedora atribuída')}</div>
+            ${c.vendedora_email ? `<div class="cd-vend-email">${esc(c.vendedora_email)}</div>` : ''}
           </div>
         </div>
       </div>
-    </div>`;
-}
 
-function toggleCupomDetalhe(headEl) {
-  const row  = headEl.closest('.cup-row');
-  if (!row) return;
-  const body = row.querySelector('.cup-row-body');
-  const tog  = row.querySelector('.cup-row-toggle');
-  if (!body) return;
-  const open = body.style.display !== 'none';
-  body.style.display = open ? 'none' : 'block';
-  if (tog) tog.textContent = open ? '▶' : '▼';
-  row.classList.toggle('cup-row-open', !open);
+      <div class="cd-section">
+        <div class="cd-section-title">Performance</div>
+        <div class="cd-stats-grid">
+          <div class="cd-stat-box">
+            <div class="cd-stat-label">Usos</div>
+            <div class="cd-stat-value">${c.usos||0}</div>
+          </div>
+          <div class="cd-stat-box">
+            <div class="cd-stat-label">Receita gerada</div>
+            <div class="cd-stat-value cd-stat-revenue">${receitaTxt}</div>
+          </div>
+          <div class="cd-stat-box">
+            <div class="cd-stat-label">Último uso</div>
+            <div class="cd-stat-value cd-stat-date">${esc(ultimoUsoTxt)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cd-section">
+        <div class="cd-section-title">Validade</div>
+        <div class="cd-section-content"><span class="cc-validade ${validadeCls}">${validadeTxt}</span></div>
+      </div>
+
+      <div class="cd-section">
+        <div class="cd-section-title">Produtos aplicáveis</div>
+        <div class="cd-section-content">📦 ${esc(prodTxt)}</div>
+      </div>
+
+      ${benefits.length ? `
+      <div class="cd-section">
+        <div class="cd-section-title">Benefícios extras</div>
+        <ul class="cd-bullet-list">
+          ${benefits.map(b => `<li>${b}</li>`).join('')}
+        </ul>
+      </div>` : ''}
+
+      ${c.criado ? `
+      <div class="cd-section">
+        <div class="cd-section-title">Criado em</div>
+        <div class="cd-section-content">${esc(c.criado)}</div>
+      </div>` : ''}
+    </div>
+    <div class="cd-footer">
+      <button class="btn-sm ${isAtivo ? 'btn-xs-danger' : 'btn-xs-accent'}"
+        onclick="toggleCupomAdmin('${escAttr(c.codigo)}','${c.status}'); closeCouponDrawer();">
+        ${isAtivo ? '⏸ Desativar' : '▶ Ativar'}
+      </button>
+      <button class="btn-sm btn-xs-danger"
+        onclick="apagarCupomAdmin('${escAttr(c.codigo)}'); closeCouponDrawer();">🗑️ Apagar cupom</button>
+    </div>`;
 }
 
 function toggleFormCupom() {
