@@ -396,6 +396,57 @@ body {
 @media (max-width: 540px) {
   .pf-comissao-grid { grid-template-columns: 1fr; }
 }
+
+/* Detalhes do saldo (reservado, aprovado, consumido) */
+.pf-com-detalhes {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 20px;
+  font-size: .82rem;
+}
+.pf-com-detalhe-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 4px 0;
+  color: var(--light, #A78BFA);
+}
+.pf-com-detalhe-item strong { color: var(--white, #fff); font-weight: 600; }
+
+/* Lista de solicitações */
+.pf-solicitacoes-wrap h3 { color: var(--white, #fff); }
+.pf-solicitacoes-list { display: flex; flex-direction: column; gap: 8px; }
+.pf-sol-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.pf-sol-head {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: .78rem; margin-bottom: 4px;
+}
+.pf-sol-data { color: var(--gray, #9CA3AF); }
+.pf-sol-status { font-weight: 700; }
+.pf-sol-valor { font-size: 1.05rem; font-weight: 800; color: var(--white, #fff); }
+.pf-sol-cupom {
+  display: flex; align-items: center; gap: 8px; margin-top: 8px;
+  padding: 8px 10px; background: rgba(245,158,11,0.1);
+  border: 1px dashed rgba(245,158,11,0.5); border-radius: 8px;
+  font-size: .82rem;
+}
+.pf-sol-cupom code {
+  font-family: 'Courier New', monospace; font-weight: 800;
+  color: #F59E0B; flex: 1;
+}
+.pf-sol-cupom button {
+  background: transparent; border: 1px solid rgba(245,158,11,0.5);
+  color: #F59E0B; border-radius: 6px; padding: 4px 8px; cursor: pointer;
+}
+.pf-sol-obs-admin {
+  margin-top: 6px; padding: 6px 10px; font-size: .78rem;
+  color: #FCA5A5; background: rgba(239,68,68,0.08); border-radius: 6px;
+}
 .pf-pedido-meta {
   display: flex;
   flex-wrap: wrap;

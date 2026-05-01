@@ -32,7 +32,7 @@
     <button class="nav-btn" data-view="indicacoes">🎁 Indicações</button>
     <button class="nav-btn" data-view="gerador">📝 Gerar Pedido</button>
     <button class="nav-btn" data-view="relatorio">📊 Relatório</button>
-    <button class="nav-btn notif-nav-btn" data-view="notificacoes">🔔 Notificações<span class="notif-badge" id="notif-badge" style="display:none">0</span></button>
+    <button class="nav-btn notif-nav-btn" data-view="solicitacoes">📥 Solicitações<span class="notif-badge" id="solic-badge" style="display:none">0</span></button>
     <button class="nav-btn" data-view="config">⚙️ Configurações</button>
   </nav>
 
@@ -517,16 +517,39 @@
     </div></div>
   </div>
 
-  <!-- ══ VIEW: NOTIFICAÇÕES ══ -->
-  <div id="view-notificacoes" class="view hidden">
+  <!-- ══ VIEW: SOLICITAÇÕES ══ -->
+  <div id="view-solicitacoes" class="view hidden">
     <div class="view-bar">
-      <h2 class="view-title">🔔 Notificações</h2>
+      <h2 class="view-title">📥 Solicitações de Cupom</h2>
       <div class="view-bar-right">
-        <button class="btn-sm btn-outline" onclick="limparNotificacoes()">🗑️ Limpar</button>
+        <select id="solic-filter-status" onchange="renderSolicitacoes()" style="min-width:140px">
+          <option value="">Todos status</option>
+          <option value="PENDENTE" selected>⏳ Pendentes</option>
+          <option value="APROVADA">✅ Aprovadas</option>
+          <option value="REJEITADA">❌ Rejeitadas</option>
+        </select>
+        <button class="btn-sm btn-outline" onclick="carregarSolicitacoes()">🔄 Atualizar</button>
       </div>
     </div>
-    <p class="notif-subtext">Apenas notificações recebidas após o login são mostradas aqui.</p>
-    <div id="notif-list" class="notif-list"></div>
+    <div class="stats-bar" id="solic-stats-bar"></div>
+    <div class="table-view" style="flex:1;overflow:auto;padding:0 20px 20px">
+      <table class="data-table" id="solic-table">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Cliente</th>
+            <th style="text-align:right">Valor</th>
+            <th>Obs cliente</th>
+            <th>Status</th>
+            <th>Cupom / Resposta</th>
+            <th style="width:200px">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="solic-tbody">
+          <tr><td colspan="7" class="loading-msg">⏳ Carregando…</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <!-- ══ VIEW: RELATÓRIO ══ -->

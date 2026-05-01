@@ -1431,6 +1431,8 @@ async function sendWhatsApp() {
     cupom_pct:     cupomAplicado && cupomData?.tipo === '%' ? (cupomData.valor).toFixed(0) : '0',
     cupom_valor:   cupomAplicado ? calcularDescontoCupom().toFixed(2) : '0',
     indicado_por:  (document.getElementById('f_indicacao')?.value || '').trim(),
+    saldo_indicacao_usar: (document.getElementById('usar_saldo_indicacao_chk')?.checked
+                            ? String(_saldoIndicacaoUsavel || 0) : '0'),
     carrinho:      JSON.stringify(cart),
     cliente_token: _cliSess?.token || '',
   });
@@ -1734,3 +1736,54 @@ function fecharPopupPrazo() {
   setTimeout(() => el.remove(), 280);
 }
 setTimeout(fecharPopupPrazo, 8000);
+
+// ─── SALDO DE INDICAÇÃO (uso direto no checkout) ────────────────────────────
+// Quando cliente abre Step 4 (revisão), busca saldo disponível e mostra opção
+// de usar nesse pedido. O valor real é validado server-side em salvar().
+let _saldoIndicacaoDisponivel = 0;
+let _saldoIndicacaoUsavel = 0;
+
+async function carregarSaldoIndicacao() {
+  const sess = (typeof getClienteSession === 'function') ? getClienteSession() : null;
+  if (!sess?.token) return;
+  try {
+    const data = await cliPost_('meu_perfil', { token: sess.token });
+    if (!data?.ok || !data.cliente?.indicacao) return;
+    _saldoIndicacaoDisponivel = parseFloat(data.cliente.indicacao.disponivel || 0);
+    if (_saldoIndicacaoDisponivel > 0) {
+      const sec = document.getElementById('saldo-indicacao-section');
+      const display = document.getElementById('saldo-disp-display');
+      if (sec) sec.style.display = '';
+      if (display) display.textContent = 'R$ ' + _saldoIndicacaoDisponivel.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+      atualizarUsoSaldoIndicacao();
+    }
+  } catch (e) { /* silently */ }
+}
+
+function atualizarUsoSaldoIndicacao() {
+  const chk = document.getElementById('usar_saldo_indicacao_chk');
+  const det = document.getElementById('saldo-usado-detalhe');
+  const valEl = document.getElementById('saldo-usado-valor');
+  if (!chk || !det) return;
+  if (!chk.checked) {
+    _saldoIndicacaoUsavel = 0;
+    det.style.display = 'none';
+    return;
+  }
+  // Lê o total atual exibido (já com cupom + frete aplicados)
+  const totalEl = document.getElementById('total-display');
+  const totalAtual = parseFloat(String(totalEl?.textContent||'0').replace(/\./g,'').replace(',','.')) || 0;
+  _saldoIndicacaoUsavel = Math.min(_saldoIndicacaoDisponivel, totalAtual);
+  _saldoIndicacaoUsavel = Math.round(_saldoIndicacaoUsavel * 100) / 100;
+  if (valEl) valEl.textContent = 'R$ ' + _saldoIndicacaoUsavel.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  det.style.display = '';
+}
+
+// Hook: quando usuário entra no Step 4 (revisão), carrega saldo
+const _origGoStep = typeof goStep === 'function' ? goStep : null;
+if (_origGoStep) {
+  window.goStep = function(n) {
+    _origGoStep.apply(this, arguments);
+    if (n === 4) carregarSaldoIndicacao();
+  };
+}

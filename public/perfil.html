@@ -72,13 +72,25 @@
       <div class="pf-comissao-card pf-com-liberada">
         <div class="pf-com-label">💰 Disponível</div>
         <div class="pf-com-valor" id="pf-com-liberada">R$ 0,00</div>
-        <div class="pf-com-meta" id="pf-com-liberada-qtd">0 indicações</div>
+        <div class="pf-com-meta" id="pf-com-liberada-qtd">Saldo livre pra usar</div>
+        <button type="button" class="pf-btn-cta" id="pf-btn-solicitar-cupom" style="margin-top:12px;display:none">🎟️ Solicitar Cupom</button>
       </div>
       <div class="pf-comissao-card pf-com-pendente">
         <div class="pf-com-label">⏳ Pendente</div>
         <div class="pf-com-valor" id="pf-com-pendente">R$ 0,00</div>
-        <div class="pf-com-meta" id="pf-com-pendente-qtd">0 indicações</div>
+        <div class="pf-com-meta" id="pf-com-pendente-qtd">Aguardando carência</div>
       </div>
+    </div>
+    <div class="pf-com-detalhes" id="pf-com-detalhes" style="display:none">
+      <div class="pf-com-detalhe-item" id="pf-det-reservado" style="display:none"></div>
+      <div class="pf-com-detalhe-item" id="pf-det-aprovado" style="display:none"></div>
+      <div class="pf-com-detalhe-item" id="pf-det-consumido" style="display:none"></div>
+    </div>
+
+    <!-- Histórico de solicitações -->
+    <div class="pf-solicitacoes-wrap" id="pf-solicitacoes-wrap" style="display:none">
+      <h3 style="font-size:.95rem;margin:24px 0 10px">📋 Suas solicitações</h3>
+      <div id="pf-solicitacoes-list" class="pf-solicitacoes-list"></div>
     </div>
 
     <div class="pf-ind-info">
@@ -221,13 +233,128 @@ async function pfCarregarIndicacao() {
 function _pfRenderComissao(indic) {
   const fmt = (v) => 'R$ ' + (parseFloat(v||0)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-  setText('pf-com-liberada',     fmt(indic.comissao_liberada));
-  setText('pf-com-pendente',     fmt(indic.comissao_pendente));
-  const plural = (n) => n === 1 ? 'indicação' : 'indicações';
-  const liberadasQtd = indic.qtd_indicacoes_liberadas || 0;
-  const pendentesQtd = indic.qtd_indicacoes_pendentes || 0;
-  setText('pf-com-liberada-qtd', `${liberadasQtd} ${plural(liberadasQtd)}`);
-  setText('pf-com-pendente-qtd', `${pendentesQtd} ${plural(pendentesQtd)}`);
+
+  // Disponível = saldo realmente usável (após deduções)
+  const disp = parseFloat(indic.disponivel || 0);
+  const reservado = parseFloat(indic.reservado_pendente || 0);
+  const aprovado  = parseFloat(indic.aprovado_cupom || 0);
+  const consumido = parseFloat(indic.consumido_pedido || 0);
+
+  setText('pf-com-liberada', fmt(disp));
+  setText('pf-com-pendente', fmt(indic.comissao_pendente));
+
+  // Botão "Solicitar Cupom" só aparece se tem saldo
+  const btn = document.getElementById('pf-btn-solicitar-cupom');
+  if (btn) {
+    btn.style.display = disp > 0 ? '' : 'none';
+    if (!btn._wired) {
+      btn._wired = true;
+      btn.addEventListener('click', () => _pfAbrirModalSolicitar(disp));
+    }
+  }
+
+  // Detalhes (reservado / aprovado / consumido) — só mostra os que > 0
+  const wrap = document.getElementById('pf-com-detalhes');
+  const showDet = (id, val, label, icon) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (val > 0) { el.style.display = ''; el.innerHTML = `<span>${icon} ${label}</span><strong>${fmt(val)}</strong>`; }
+    else el.style.display = 'none';
+  };
+  showDet('pf-det-reservado', reservado, 'Em solicitação', '⏳');
+  showDet('pf-det-aprovado',  aprovado,  'Já virou cupom', '🎟️');
+  showDet('pf-det-consumido', consumido, 'Usado em pedidos', '🛒');
+  if (wrap) wrap.style.display = (reservado > 0 || aprovado > 0 || consumido > 0) ? '' : 'none';
+
+  // Carrega histórico de solicitações se cliente tem ou já teve saldo
+  if (disp > 0 || reservado > 0 || aprovado > 0 || parseFloat(indic.comissao_liberada || 0) > 0) {
+    _pfCarregarSolicitacoes();
+  }
+}
+
+// ─── MODAL SOLICITAR CUPOM ──────────────────────────────────────────────────
+function _pfAbrirModalSolicitar(maxDisp) {
+  const old = document.getElementById('pf-modal-solicitar');
+  if (old) old.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'pf-modal-solicitar';
+  overlay.className = 'cli-modal-overlay show';
+  overlay.style.zIndex = '9100';
+  const maxFmt = 'R$ ' + maxDisp.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  overlay.innerHTML = `
+    <div class="cli-modal" style="max-width:440px">
+      <button type="button" class="cli-modal-close" data-sol-close aria-label="Fechar">✕</button>
+      <h2 class="cli-form-title">🎟️ Solicitar Cupom</h2>
+      <p class="cli-form-sub">Saldo disponível: <strong style="color:#22C55E">${maxFmt}</strong></p>
+      <div class="cli-field">
+        <label>Valor do cupom (R$)</label>
+        <input type="number" id="pf-sol-valor" min="1" max="${maxDisp.toFixed(2)}" step="0.01" placeholder="0,00"/>
+      </div>
+      <div class="cli-field">
+        <label>Observação (opcional)</label>
+        <input type="text" id="pf-sol-obs" placeholder="Ex: pra usar no próximo pedido"/>
+      </div>
+      <div class="cli-msg" id="pf-sol-msg"></div>
+      <button type="button" class="cli-btn-cta" id="pf-sol-submit">Enviar solicitação</button>
+      <p style="font-size:.78rem;color:var(--gray);margin-top:10px;text-align:center">
+        O admin vai aprovar e gerar um cupom no valor solicitado.
+        Validade do cupom: 90 dias após aprovação.
+      </p>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  overlay.querySelector('[data-sol-close]').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#pf-sol-submit').addEventListener('click', async () => {
+    const valor = parseFloat(document.getElementById('pf-sol-valor').value);
+    const obs   = document.getElementById('pf-sol-obs').value.trim();
+    const msg   = document.getElementById('pf-sol-msg');
+    if (isNaN(valor) || valor < 1) { msg.textContent = 'Valor mínimo R$ 1,00'; msg.className = 'cli-msg cli-msg-err'; return; }
+    if (valor > maxDisp + 0.001) { msg.textContent = `Valor excede saldo disponível (${maxFmt})`; msg.className = 'cli-msg cli-msg-err'; return; }
+    msg.textContent = '⏳ Enviando…'; msg.className = 'cli-msg';
+    try {
+      const data = await cliPost_('solicitar_cupom_indicacao', { token: _pfSess.token, valor, obs });
+      if (data && data.ok) {
+        msg.textContent = '✅ Solicitação enviada! O admin vai analisar.'; msg.className = 'cli-msg cli-msg-ok';
+        setTimeout(() => { overlay.remove(); pfCarregarIndicacao(); }, 1200);
+      } else {
+        msg.textContent = '⚠️ ' + (data?.erro || 'Erro'); msg.className = 'cli-msg cli-msg-err';
+      }
+    } catch (e) {
+      msg.textContent = '⚠️ Erro de conexão'; msg.className = 'cli-msg cli-msg-err';
+    }
+  });
+  setTimeout(() => document.getElementById('pf-sol-valor')?.focus(), 80);
+}
+
+// ─── LISTA DE SOLICITAÇÕES ──────────────────────────────────────────────────
+async function _pfCarregarSolicitacoes() {
+  try {
+    const data = await cliPost_('minhas_solicitacoes', { token: _pfSess.token });
+    if (!data || !data.ok) return;
+    const wrap = document.getElementById('pf-solicitacoes-wrap');
+    const list = document.getElementById('pf-solicitacoes-list');
+    if (!wrap || !list) return;
+    if (!data.solicitacoes.length) { wrap.style.display = 'none'; return; }
+    wrap.style.display = '';
+    list.innerHTML = data.solicitacoes.map(s => {
+      const stColor = { PENDENTE:'#F59E0B', APROVADA:'#22C55E', REJEITADA:'#EF4444', EXPIRADA:'#9CA3AF' }[s.status] || '#9CA3AF';
+      const stIcon  = { PENDENTE:'⏳', APROVADA:'✅', REJEITADA:'❌', EXPIRADA:'🕒' }[s.status] || '';
+      const valor = 'R$ ' + parseFloat(s.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+      const cupomBox = s.status === 'APROVADA' && s.cupomGerado
+        ? `<div class="pf-sol-cupom"><span>Código:</span><code>${pfEsc(s.cupomGerado)}</code><button type="button" onclick="navigator.clipboard.writeText('${pfEsc(s.cupomGerado)}').then(()=>this.textContent='✅')">📋</button></div>`
+        : '';
+      const obsAdmin = s.obsAdmin && s.status === 'REJEITADA'
+        ? `<div class="pf-sol-obs-admin">Motivo: ${pfEsc(s.obsAdmin)}</div>` : '';
+      return `<div class="pf-sol-card">
+        <div class="pf-sol-head">
+          <span class="pf-sol-data">${pfEsc(s.data)}</span>
+          <span class="pf-sol-status" style="color:${stColor}">${stIcon} ${pfEsc(s.status)}</span>
+        </div>
+        <div class="pf-sol-valor">${valor}</div>
+        ${cupomBox}${obsAdmin}
+      </div>`;
+    }).join('');
+  } catch (e) { /* silently */ }
 }
 function _pfRenderCodigo(codigo) {
   const el = document.getElementById('pf-ind-codigo');

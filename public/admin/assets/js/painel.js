@@ -240,6 +240,7 @@ function renderCurrentView() {
   if (App.view === 'relatorio')  { loadRelatorio().then(renderRelatorio); }
   if (App.view === 'config')     { loadAdmins().then(renderConfig); }
   if (App.view === 'indicacoes') { carregarIndicacoes(); }
+  if (App.view === 'solicitacoes') { carregarSolicitacoes(); }
   if (App.view === 'gerador') {
     if (typeof window.initGerador === 'function') window.initGerador();
   }
@@ -2889,6 +2890,117 @@ async function acaoIndicacao(rowNum, status) {
     if (data && data.ok) {
       showToast('Status atualizado');
       carregarIndicacoes();
+    } else {
+      showToast('⚠️ ' + (data?.erro || 'Erro'), 'error');
+    }
+  } catch (e) {
+    showToast('⚠️ Erro de conexão', 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SOLICITAÇÕES (admin)
+// ═══════════════════════════════════════════════════════════════════════════════
+let _solicitacoesCache = [];
+let _solicitacoesStats = {};
+
+async function carregarSolicitacoes() {
+  const tbody = document.getElementById('solic-tbody');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="loading-msg">⏳ Carregando…</td></tr>';
+  try {
+    const data = await API.solicitacoes();
+    if (data && data.ok) {
+      _solicitacoesCache = data.solicitacoes || [];
+      _solicitacoesStats = data.stats || {};
+      renderSolicitacoes();
+      // Atualiza badge no nav
+      const badge = document.getElementById('solic-badge');
+      if (badge) {
+        const n = _solicitacoesStats.pendentes || 0;
+        badge.textContent = n;
+        badge.style.display = n > 0 ? '' : 'none';
+      }
+    } else {
+      if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="empty-msg">⚠️ ${esc(data?.erro || 'Erro')}</td></tr>`;
+    }
+  } catch (e) {
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="empty-msg">⚠️ Erro de conexão</td></tr>';
+  }
+}
+
+function renderSolicitacoes() {
+  const tbody = document.getElementById('solic-tbody');
+  const statsBar = document.getElementById('solic-stats-bar');
+  if (!tbody) return;
+
+  if (statsBar) {
+    const s = _solicitacoesStats;
+    statsBar.innerHTML = `
+      <div class="stat-card"><div class="stat-val">${s.pendentes||0}</div><div class="stat-lbl">⏳ Pendentes</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--accent)">${formatMoeda(s.totalPendente||0)}</div><div class="stat-lbl">Valor pendente</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:#22C55E">${s.aprovadas||0}</div><div class="stat-lbl">✅ Aprovadas</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:#FCA5A5">${s.rejeitadas||0}</div><div class="stat-lbl">❌ Rejeitadas</div></div>
+    `;
+  }
+
+  const filtroStatus = (document.getElementById('solic-filter-status')?.value||'').toUpperCase();
+  const lista = _solicitacoesCache.filter(s => !filtroStatus || s.status === filtroStatus);
+
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-msg">Nenhuma solicitação</td></tr>';
+    return;
+  }
+
+  const stColor = (st) => ({ PENDENTE:'#F59E0B', APROVADA:'#22C55E', REJEITADA:'#FCA5A5', EXPIRADA:'#9CA3AF' })[st] || '#9CA3AF';
+  const stIcon  = (st) => ({ PENDENTE:'⏳', APROVADA:'✅', REJEITADA:'❌', EXPIRADA:'🕒' })[st] || '';
+
+  tbody.innerHTML = lista.map(s => {
+    const cupom = s.cupomGerado ? `<code style="background:rgba(245,158,11,0.15);padding:2px 6px;border-radius:4px;font-size:11px">${esc(s.cupomGerado)}</code>` : '';
+    const obsAdmin = s.obsAdmin ? `<div style="font-size:11px;color:var(--text2);margin-top:2px">${esc(s.obsAdmin)}</div>` : '';
+    const acoes = s.status === 'PENDENTE' ? `
+      <button class="btn-xs" style="background:rgba(34,197,94,0.15);border-color:rgba(34,197,94,0.5);color:#22C55E"
+        onclick="aprovarSolicitacao(${s.rowNum})">✅ Aprovar</button>
+      <button class="btn-xs btn-danger" onclick="rejeitarSolicitacao(${s.rowNum})">❌ Rejeitar</button>
+    ` : `<span style="font-size:11px;color:var(--text2)">${esc(s.dataResposta||'—')}</span>`;
+    return `
+      <tr>
+        <td style="font-size:11px;color:var(--text2);white-space:nowrap">${esc(s.data)}</td>
+        <td><strong>${esc(s.clienteNome)}</strong><div style="font-size:11px;color:var(--text2)">${esc(s.clienteEmail)}</div><div style="font-size:10px;color:var(--text2)">${esc(s.clienteId)}</div></td>
+        <td style="text-align:right;font-weight:700;color:var(--accent)">${formatMoeda(s.valor)}</td>
+        <td style="font-size:12px;color:var(--text2);max-width:200px">${esc(s.obsCliente || '—')}</td>
+        <td style="color:${stColor(s.status)};font-weight:600;white-space:nowrap">${stIcon(s.status)} ${esc(s.status)}</td>
+        <td>${cupom}${obsAdmin}</td>
+        <td>${acoes}</td>
+      </tr>`;
+  }).join('');
+}
+
+async function aprovarSolicitacao(rowNum) {
+  const obs = prompt('Observação interna (opcional):') || '';
+  if (obs === null) return; // user pressed cancel
+  if (!confirm('Aprovar e gerar cupom?')) return;
+  try {
+    const data = await API.aprovarSolicitacao(rowNum, obs);
+    if (data && data.ok) {
+      showToast(`✅ Cupom ${data.codigo} gerado (válido até ${data.validade})`);
+      carregarSolicitacoes();
+    } else {
+      showToast('⚠️ ' + (data?.erro || 'Erro'), 'error');
+    }
+  } catch (e) {
+    showToast('⚠️ Erro de conexão', 'error');
+  }
+}
+
+async function rejeitarSolicitacao(rowNum) {
+  const motivo = prompt('Motivo da rejeição (opcional):') || '';
+  if (motivo === null) return;
+  if (!confirm('Rejeitar essa solicitação? Saldo do cliente vai voltar pro disponível.')) return;
+  try {
+    const data = await API.rejeitarSolicitacao(rowNum, motivo);
+    if (data && data.ok) {
+      showToast('Solicitação rejeitada');
+      carregarSolicitacoes();
     } else {
       showToast('⚠️ ' + (data?.erro || 'Erro'), 'error');
     }

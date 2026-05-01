@@ -67,4 +67,7 @@ const API = {
   editarProtocolo:  (p)                 => API.call({ action: 'editar_protocolo', ...p }),
   indicacoes:       ()                  => API.call({ action: 'painel_indicacoes' }),
   setIndicacaoStatus: (rowNum, status)  => API.call({ action: 'set_indicacao_status', rowNum, status }),
+  solicitacoes:     ()                  => API.call({ action: 'painel_solicitacoes' }),
+  aprovarSolicitacao: (rowNum, obs_admin) => API.call({ action: 'aprovar_solicitacao', rowNum, obs_admin: obs_admin || '' }),
+  rejeitarSolicitacao: (rowNum, motivo) => API.call({ action: 'rejeitar_solicitacao', rowNum, motivo: motivo || '' }),
 };
