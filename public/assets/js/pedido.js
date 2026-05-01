@@ -1785,7 +1785,7 @@ const INDICACAO_MOTIVOS = {
   self_ref_cpf:            '❌ Esse código pertence ao seu CPF — não pode usar.',
   self_ref_tel:            '❌ Esse código pertence ao seu telefone — não pode usar.',
   indicador_e_vendedora:   '❌ Esse código pertence a uma vendedora. Vendedoras não participam do programa de indicação.',
-  ja_usou_indicacao:       '❌ Você já usou um código de indicação antes. O benefício é válido só na primeira compra.',
+  nao_e_primeira_compra:   '❌ O código de indicação só pode ser usado na sua primeira compra no site.',
   sem_clientes:            '❌ Sistema indisponível. Tente novamente em alguns minutos.',
   sem_coluna_cliente_id:   '❌ Sistema indisponível. Tente novamente em alguns minutos.',
   erro_interno:            '⚠️ Erro ao validar. Tente novamente.',
