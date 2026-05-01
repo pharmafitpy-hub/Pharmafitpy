@@ -1339,6 +1339,24 @@ async function sendWhatsApp() {
     btnWA.style.cursor = 'wait';
     btnWA.innerHTML = '<span style="display:inline-flex;align-items:center;gap:8px">⏳ Enviando pedido...</span>';
   }
+  // Wrapper try-finally garante que o flag e o botão SEMPRE voltam ao normal,
+  // mesmo se algo no meio do código throw. Isso evita o bug "botão travado".
+  try {
+    return await _sendWhatsAppCore(btnWA, _btnHtmlOrig);
+  } catch (err) {
+    console.error('Erro inesperado em sendWhatsApp:', err);
+  } finally {
+    _sendingPedido = false;
+    if (btnWA && btnWA.innerHTML.includes('Enviando')) {
+      btnWA.disabled = false;
+      btnWA.style.opacity = '';
+      btnWA.style.cursor = '';
+      btnWA.innerHTML = _btnHtmlOrig;
+    }
+  }
+}
+
+async function _sendWhatsAppCore(btnWA, _btnHtmlOrig) {
 
   const total = getFinalTotal();
 
@@ -1762,7 +1780,7 @@ function validarIndicacao() {
   if (btnApl) btnApl.classList.add('hidden');
   if (btnRem) btnRem.classList.remove('hidden');
   if (msg) {
-    msg.innerHTML = `✅ Código <strong>${codigo}</strong> aplicado. A pessoa indicada vai ganhar comissão se você completar o pedido.`;
+    msg.innerHTML = `✅ Código <strong>${codigo}</strong> aplicado!`;
     msg.style.color = '#22C55E';
   }
 }
