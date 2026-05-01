@@ -31,6 +31,7 @@
   <!-- TABS -->
   <div class="pf-tabs">
     <button type="button" class="pf-tab active" data-pf-tab="pedidos" onclick="pfShowTab('pedidos')">📦 Meus Pedidos</button>
+    <button type="button" class="pf-tab" data-pf-tab="indicacao" onclick="pfShowTab('indicacao')">🎁 Indicação</button>
     <button type="button" class="pf-tab" data-pf-tab="conta" onclick="pfShowTab('conta')">👤 Minha Conta</button>
   </div>
 
@@ -48,6 +49,36 @@
       <a href="pedido.html" class="pf-btn-cta">🛒 Fazer meu primeiro pedido</a>
     </div>
     <div id="pf-pedidos-list" class="pf-pedidos-list"></div>
+  </section>
+
+  <!-- ════ TAB: INDICAÇÃO ════ -->
+  <section class="pf-section" data-pf-pane="indicacao" style="display:none">
+    <div class="pf-section-head">
+      <h2>🎁 Programa de Indicação</h2>
+      <p>Compartilhe seu código com amigos e ganhe comissão na primeira compra de cada um.</p>
+    </div>
+
+    <div class="pf-indicacao-card">
+      <div class="pf-ind-label">Seu código de indicação</div>
+      <div class="pf-ind-codigo" id="pf-ind-codigo">⏳ Carregando…</div>
+      <div class="pf-ind-actions">
+        <button type="button" class="pf-btn-cta" id="pf-ind-copy">📋 Copiar código</button>
+        <button type="button" class="pf-btn-cta pf-btn-share" id="pf-ind-share">📤 Compartilhar</button>
+      </div>
+    </div>
+
+    <div class="pf-ind-info">
+      <h3>Como funciona</h3>
+      <ol class="pf-ind-steps">
+        <li><strong>Compartilhe seu código</strong> com amigos por WhatsApp, redes sociais ou pessoalmente.</li>
+        <li><strong>Eles fazem o primeiro pedido</strong> usando seu código no campo "Código de Indicação" durante a compra.</li>
+        <li><strong>Você ganha comissão</strong> automaticamente — apenas na primeira compra de cada pessoa indicada.</li>
+        <li><strong>O saldo acumula</strong> e fica disponível após o pedido ser confirmado e despachado (carência de 14 dias).</li>
+      </ol>
+      <div class="pf-ind-note">
+        💡 <strong>Sem limite</strong> de indicações — quanto mais amigos, maior sua comissão acumulada.
+      </div>
+    </div>
   </section>
 
   <!-- ════ TAB: CONTA ════ -->
@@ -145,6 +176,56 @@ function pfFmtBrl(v) { return parseFloat(v||0).toLocaleString('pt-BR',{minimumFr
 function pfShowTab(tab) {
   document.querySelectorAll('[data-pf-tab]').forEach(b => b.classList.toggle('active', b.dataset.pfTab === tab));
   document.querySelectorAll('[data-pf-pane]').forEach(p => p.style.display = (p.dataset.pfPane === tab) ? '' : 'none');
+  if (tab === 'indicacao') pfCarregarIndicacao();
+}
+
+// ─── INDICAÇÃO ────────────────────────────────────────────────────────────
+let _pfCodigoCache = '';
+async function pfCarregarIndicacao() {
+  const el = document.getElementById('pf-ind-codigo');
+  if (!el) return;
+  if (_pfCodigoCache) { _pfRenderCodigo(_pfCodigoCache); return; }
+  // Tenta sessão local primeiro (vem do cadastro)
+  if (_pfSess && _pfSess.codigo_indicacao) { _pfCodigoCache = _pfSess.codigo_indicacao; _pfRenderCodigo(_pfCodigoCache); return; }
+  try {
+    const data = await cliPost_('meu_perfil', { token: _pfSess.token });
+    if (data && data.ok && data.cliente && data.cliente.codigo_indicacao) {
+      _pfCodigoCache = data.cliente.codigo_indicacao;
+      // Persiste no localStorage pra próximas visitas
+      _pfSess.codigo_indicacao = _pfCodigoCache;
+      setClienteSession(_pfSess);
+      _pfRenderCodigo(_pfCodigoCache);
+    } else {
+      el.textContent = '⚠️ Não foi possível carregar';
+    }
+  } catch (e) {
+    el.textContent = '⚠️ Erro de conexão';
+  }
+}
+function _pfRenderCodigo(codigo) {
+  const el = document.getElementById('pf-ind-codigo');
+  if (el) el.textContent = codigo;
+  const btnCopy = document.getElementById('pf-ind-copy');
+  if (btnCopy && !btnCopy._wired) {
+    btnCopy._wired = true;
+    btnCopy.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(codigo); btnCopy.textContent = '✅ Copiado!'; setTimeout(() => btnCopy.textContent = '📋 Copiar código', 2000); }
+      catch (_) { btnCopy.textContent = '⚠️ Falha'; }
+    });
+  }
+  const btnShare = document.getElementById('pf-ind-share');
+  if (btnShare && !btnShare._wired) {
+    btnShare._wired = true;
+    btnShare.addEventListener('click', async () => {
+      const msg = `🎁 Use meu código *${codigo}* na sua primeira compra! Catálogo: ${window.location.origin}`;
+      if (navigator.share) {
+        try { await navigator.share({ text: msg }); } catch (_) {}
+      } else {
+        // Fallback: WhatsApp web
+        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+      }
+    });
+  }
 }
 
 // ─── SAIR ─────────────────────────────────────────────────────────────────

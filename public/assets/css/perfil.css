@@ -280,6 +280,77 @@ body {
 }
 .pf-fin-total strong { color: var(--accent, #f59e0b); font-size: 1.05rem; }
 .pf-fin-meta { font-size: .8rem; color: var(--gray, #9CA3AF); }
+
+/* ─── INDICAÇÃO ─────────────────────────────────────────── */
+.pf-indicacao-card {
+  background: linear-gradient(135deg, rgba(124,58,237,0.18), rgba(245,158,11,0.12));
+  border: 1px dashed rgba(245,158,11,0.5);
+  border-radius: 14px;
+  padding: 24px 20px;
+  text-align: center;
+  margin-bottom: 24px;
+}
+.pf-ind-label {
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--gray, #9CA3AF);
+  margin-bottom: 8px;
+}
+.pf-ind-codigo {
+  font-family: 'Courier New', monospace;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #F59E0B;
+  letter-spacing: 1px;
+  word-break: break-all;
+  margin-bottom: 18px;
+}
+.pf-ind-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.pf-ind-actions .pf-btn-cta {
+  flex: 0 1 auto;
+  padding: 10px 18px;
+  font-size: .9rem;
+}
+.pf-btn-share {
+  background: transparent !important;
+  border: 1px solid var(--accent, #F59E0B) !important;
+  color: var(--accent, #F59E0B) !important;
+}
+.pf-ind-info {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 18px 20px;
+}
+.pf-ind-info h3 {
+  font-size: .95rem;
+  margin-bottom: 12px;
+  color: var(--white, #fff);
+}
+.pf-ind-steps {
+  padding-left: 22px;
+  margin-bottom: 14px;
+}
+.pf-ind-steps li {
+  font-size: .85rem;
+  line-height: 1.6;
+  color: var(--light, #A78BFA);
+  margin-bottom: 6px;
+}
+.pf-ind-note {
+  background: rgba(245,158,11,0.08);
+  border-left: 3px solid #F59E0B;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: .82rem;
+  color: var(--white, #fff);
+}
 .pf-pedido-meta {
   display: flex;
   flex-wrap: wrap;

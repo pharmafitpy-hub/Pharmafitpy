@@ -1430,6 +1430,7 @@ async function sendWhatsApp() {
     cupom_codigo:  cupomCodigo || '',
     cupom_pct:     cupomAplicado && cupomData?.tipo === '%' ? (cupomData.valor).toFixed(0) : '0',
     cupom_valor:   cupomAplicado ? calcularDescontoCupom().toFixed(2) : '0',
+    indicado_por:  (document.getElementById('f_indicacao')?.value || '').trim(),
     carrinho:      JSON.stringify(cart),
     cliente_token: _cliSess?.token || '',
   });
