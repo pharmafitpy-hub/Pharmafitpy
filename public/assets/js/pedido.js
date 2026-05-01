@@ -1737,6 +1737,50 @@ function fecharPopupPrazo() {
 }
 setTimeout(fecharPopupPrazo, 8000);
 
+// ─── CÓDIGO DE INDICAÇÃO (digitado pelo comprador) ──────────────────────────
+// Validação só de formato (LP-XXXXXX ou apelido-XXXXXX com 6 hex no fim).
+// Validação real (indicador existe, anti-fraude) é server-side em salvar().
+function validarIndicacao() {
+  const input = document.getElementById('f_indicacao');
+  const msg   = document.getElementById('indicacao-msg');
+  const btnApl = document.getElementById('btn-indicacao');
+  const btnRem = document.getElementById('btn-remover-indicacao');
+  if (!input) return;
+  const codigo = (input.value || '').trim().toUpperCase();
+  if (!codigo) {
+    if (msg) { msg.textContent = '⚠️ Digite ou cole um código.'; msg.style.color = '#FCA5A5'; }
+    return;
+  }
+  // Aceita "LP-A4F7K2", "joao-A4F7K2", "MARIA-SILVA-A4F7K2", "A4F7K2"
+  const m = codigo.match(/([A-F0-9]{6})$/);
+  if (!m) {
+    if (msg) { msg.textContent = '❌ Formato inválido. Use o código completo (ex: joao-A4F7K2).'; msg.style.color = '#FCA5A5'; }
+    return;
+  }
+  // Trava input + mostra confirmação
+  input.disabled = true;
+  if (btnApl) btnApl.classList.add('hidden');
+  if (btnRem) btnRem.classList.remove('hidden');
+  if (msg) {
+    msg.innerHTML = `✅ Código <strong>${codigo}</strong> aplicado. A pessoa indicada vai ganhar comissão se você completar o pedido.`;
+    msg.style.color = '#22C55E';
+  }
+}
+
+function removerIndicacao() {
+  const input = document.getElementById('f_indicacao');
+  const msg   = document.getElementById('indicacao-msg');
+  const btnApl = document.getElementById('btn-indicacao');
+  const btnRem = document.getElementById('btn-remover-indicacao');
+  if (input) { input.value = ''; input.disabled = false; }
+  if (btnApl) btnApl.classList.remove('hidden');
+  if (btnRem) btnRem.classList.add('hidden');
+  if (msg) {
+    msg.textContent = 'Foi indicado por alguém? Cole o código aqui pra que ele/ela ganhe comissão.';
+    msg.style.color = '';
+  }
+}
+
 // ─── SALDO DE INDICAÇÃO (uso direto no checkout) ────────────────────────────
 // Quando cliente abre Step 4 (revisão), busca saldo disponível e mostra opção
 // de usar nesse pedido. O valor real é validado server-side em salvar().

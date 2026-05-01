@@ -376,9 +376,12 @@
       <div class="cupom-header">🎁 Código de Indicação <span style="opacity:.6;font-weight:400;text-transform:none;letter-spacing:0">(opcional)</span></div>
       <div class="cupom-row">
         <input type="text" id="f_indicacao" placeholder="EX: joao-A4F7K2"
-               oninput="this.value=this.value.toUpperCase()"/>
+               oninput="this.value=this.value.toUpperCase()"
+               onkeydown="if(event.key==='Enter') validarIndicacao()"/>
+        <button id="btn-indicacao" onclick="validarIndicacao()">Validar</button>
+        <button id="btn-remover-indicacao" class="hidden" onclick="removerIndicacao()">✕ Remover</button>
       </div>
-      <div style="font-size:.75rem;color:var(--gray);margin-top:6px">
+      <div id="indicacao-msg" style="font-size:.75rem;color:var(--gray);margin-top:6px">
         Foi indicado por alguém? Cole o código aqui pra que ele/ela ganhe comissão.
       </div>
     </div>
