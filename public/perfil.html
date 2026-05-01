@@ -185,7 +185,8 @@
 <script src="assets/js/client_render.js"></script>
 <script>
 // ─── GUARD: redirect se não logado ────────────────────────────────────────
-const _pfSess = getClienteSession();
+// `let` (não `const`) pra _pfRequest poder atualizar após reautenticação
+let _pfSess = getClienteSession();
 if (!_pfSess) {
   window.location.href = 'index.html';
 }
