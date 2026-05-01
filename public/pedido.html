@@ -65,63 +65,77 @@
 
   <!-- STEP 1 — PRODUTOS -->
   <div class="step-panel active" id="panel1">
-    <div class="panel-title">💊 Selecione os Produtos</div>
-    <div class="panel-subtitle">Clique no produto para selecionar e defina a quantidade</div>
-
     <div id="alert1" class="alert">⚠️ Selecione pelo menos 1 produto para continuar.</div>
 
-    <input type="search" id="product-search" placeholder="🔍 Buscar produto pelo nome..."
-      oninput="activeSearch=this.value.toLowerCase().trim();renderProducts()"
-      style="width:100%;padding:9px 14px;border-radius:8px;border:1px solid var(--border);
-             background:#FFFFFF;color:#1A1428;font-size:.88rem;outline:none;font-family:inherit;margin-bottom:14px;display:block"/>
-
-    <!-- ⭐ Em Destaque -->
-    <div class="hl-section" id="section-destaque" style="display:none">
-      <div class="hl-header">
-        <span>⭐</span>
-        <span class="hl-title">Em Destaque</span>
-        <span class="hl-sub">Os mais vendidos</span>
-      </div>
-      <div class="hl-grid" id="grid-destaque"></div>
+    <!-- BARRA DE BUSCA -->
+    <div class="search-bar-wrap">
+      <input type="search" id="product-search" placeholder="🔍 O que você está procurando?"
+        oninput="onSearchInput(this.value)"
+        autocomplete="off"/>
+      <button class="search-clear-btn" id="search-clear-btn" onclick="clearSearch()" style="display:none">✕</button>
     </div>
 
-    <!-- 💡 Você também pode gostar -->
-    <div class="hl-section" id="section-recomendado" style="display:none">
-      <div class="hl-header">
-        <span>💡</span>
-        <span class="hl-title">Você também pode gostar</span>
-        <span class="hl-sub">Selecionados para você</span>
+    <!-- HERO CARROSSEL DE DESTAQUES -->
+    <section class="hero-carousel" id="hero-carousel" style="display:none">
+      <div class="hero-track" id="hero-track"></div>
+      <button class="hero-arrow hero-arrow-left" onclick="heroNav(-1)" aria-label="Anterior">‹</button>
+      <button class="hero-arrow hero-arrow-right" onclick="heroNav(1)" aria-label="Próximo">›</button>
+      <div class="hero-dots" id="hero-dots"></div>
+    </section>
+
+    <!-- CATEGORIAS EM DESTAQUE -->
+    <section class="cat-section" id="cat-section" style="display:none">
+      <div class="cat-section-head">
+        <h2 class="cat-section-title">Categorias</h2>
+        <span class="cat-section-sub">Toque para explorar</span>
       </div>
-      <div class="hl-grid" id="grid-recomendado"></div>
+      <div class="cat-grid" id="cat-grid"></div>
+    </section>
+
+    <!-- CHIP DE CATEGORIA ATIVA -->
+    <div class="cat-chip-bar" id="cat-chip-bar" style="display:none">
+      <button class="cat-chip-back" onclick="setTagFilter('todos')">←</button>
+      <div class="cat-chip-info">
+        <div class="cat-chip-label" id="cat-chip-label"></div>
+        <div class="cat-chip-count" id="cat-chip-count"></div>
+      </div>
+      <button class="cat-chip-clear" onclick="setTagFilter('todos')">✕ Limpar</button>
     </div>
 
-    <div class="catalog-divider" id="catalog-divider" style="display:none">📦 Catálogo Completo</div>
-
-    <div class="filter-area">
-      <div class="filter-group">
-        <div class="filter-group-header" onclick="toggleFilterGroup('lab-filters','arrow-lab')">
-          <span class="filter-group-label">Laboratórios</span>
-          <span class="filter-arrow" id="arrow-lab">▼</span>
+    <!-- FILTROS AVANÇADOS (COLAPSADOS) -->
+    <div class="adv-filters-wrap" id="adv-filters-wrap" style="display:none">
+      <button class="adv-filters-toggle" id="adv-filters-toggle" onclick="toggleAdvFilters()">
+        <span>⚙ Filtros &amp; Ordenação</span>
+        <span class="adv-filters-arrow" id="adv-filters-arrow">▼</span>
+      </button>
+      <div class="adv-filters-body" id="adv-filters-body" style="display:none">
+        <div class="filter-group">
+          <div class="filter-group-label">Laboratórios</div>
+          <div class="lab-filters" id="lab-filters"></div>
         </div>
-        <div class="lab-filters" id="lab-filters" style="display:none"></div>
-      </div>
-      <div class="filter-group">
-        <div class="filter-group-header">
-          <span class="filter-group-label">Categoria</span>
+        <div class="sort-bar">
+          <span class="sort-label">Ordenar:</span>
+          <button class="sort-btn active" data-sort="alpha" onclick="setSort('alpha')">A–Z</button>
+          <button class="sort-btn" data-sort="price-asc" onclick="setSort('price-asc')">↑ Menor preço</button>
+          <button class="sort-btn" data-sort="price-desc" onclick="setSort('price-desc')">↓ Maior preço</button>
         </div>
-        <div class="lab-filters" id="tag-filters"></div>
-      </div>
-      <div class="sort-bar">
-        <span class="sort-label">Ordenar:</span>
-        <button class="sort-btn active" data-sort="alpha" onclick="setSort('alpha')">A–Z</button>
-        <button class="sort-btn" data-sort="price-asc" onclick="setSort('price-asc')">↑ Menor preço</button>
-        <button class="sort-btn" data-sort="price-desc" onclick="setSort('price-desc')">↓ Maior preço</button>
       </div>
     </div>
 
-    <div class="products-grid" id="products-grid">
+    <!-- GRID DE PRODUTOS -->
+    <div class="products-grid" id="products-grid" style="display:none">
       <!-- cards gerados via JS -->
     </div>
+
+    <!-- ESTADO VAZIO (busca sem resultados) -->
+    <div class="empty-state" id="empty-state" style="display:none">
+      <div class="empty-icon">🔍</div>
+      <div class="empty-title">Nenhum produto encontrado</div>
+      <div class="empty-sub">Tente outro termo ou explore as categorias.</div>
+    </div>
+
+    <!-- container oculto pra compat (ordem de filtros): tag-filters não usado mais -->
+    <div id="tag-filters" style="display:none"></div>
 
     <div class="cart-sticky">
       <div class="total-bar">
