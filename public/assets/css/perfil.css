@@ -145,6 +145,14 @@ body {
   gap: 14px;
   flex-wrap: wrap;
   margin-bottom: 16px;
+  /* override do CSS global de <header> (sticky/fundo/borda do nav do site) */
+  position: static;
+  top: auto;
+  z-index: auto;
+  background: transparent;
+  border-bottom: none;
+  padding: 0;
+  box-shadow: none;
 }
 .pf-pedido-id {
   font-family: monospace;

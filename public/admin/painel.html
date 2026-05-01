@@ -305,8 +305,43 @@
       </form>
     </div>
 
-    <div class="search-bar-wrapper">
-      <input type="search" id="busca-cupons" placeholder="🔍 Buscar cupom..." oninput="renderCupons()"/>
+    <!-- Stats bar -->
+    <div class="cupom-stats-bar" id="cupom-stats-bar">
+      <div class="cs-box">
+        <div class="cs-label">Total</div>
+        <div class="cs-value" id="cs-total">—</div>
+      </div>
+      <div class="cs-box cs-box-on">
+        <div class="cs-label">Ativos</div>
+        <div class="cs-value" id="cs-ativos">—</div>
+      </div>
+      <div class="cs-box">
+        <div class="cs-label">Usos</div>
+        <div class="cs-value" id="cs-usos">—</div>
+      </div>
+      <div class="cs-box cs-box-revenue">
+        <div class="cs-label">Receita gerada</div>
+        <div class="cs-value" id="cs-receita">R$ —</div>
+      </div>
+    </div>
+
+    <div class="cupom-filters">
+      <input type="search" id="busca-cupons" placeholder="🔍 Buscar por código ou vendedora..." oninput="renderCupons()"/>
+      <select id="filtro-cupom-status" onchange="renderCupons()">
+        <option value="">Todos status</option>
+        <option value="Ativo">✅ Ativos</option>
+        <option value="Desativado">⏸ Desativados</option>
+        <option value="Expirado">⌛ Expirados</option>
+      </select>
+      <select id="filtro-cupom-vendedora" onchange="renderCupons()">
+        <option value="">Todas vendedoras</option>
+      </select>
+      <select id="filtro-cupom-sort" onchange="renderCupons()">
+        <option value="recentes">🕐 Mais recentes</option>
+        <option value="usos">🔥 Mais usados</option>
+        <option value="receita">💰 Maior receita</option>
+        <option value="alpha">A–Z</option>
+      </select>
     </div>
     <div id="cupons-grid" class="admin-grid cupom-grid">
       <div class="loading-msg">⏳ Carregando...</div>

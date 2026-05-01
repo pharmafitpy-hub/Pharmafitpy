@@ -1585,40 +1585,154 @@ function exportarCSV() {
 function renderCupons() {
   const grid = document.getElementById('cupons-grid');
   if (!grid) return;
+
+  // Popula dropdown de vendedoras (1x — depois mantém)
+  _atualizarFiltroVendedoras();
+
+  // Stats agregadas (sempre da lista completa, não filtrada)
+  _atualizarStatsCupons();
+
+  // Filtros + busca
   const q = (document.getElementById('busca-cupons')?.value || '').toLowerCase();
-  const lista = q
-    ? App.cupons.filter(c => c.codigo.toLowerCase().includes(q) || (c.vendedora||'').toLowerCase().includes(q))
-    : App.cupons;
+  const fStatus = document.getElementById('filtro-cupom-status')?.value || '';
+  const fVend   = document.getElementById('filtro-cupom-vendedora')?.value || '';
+  const sort    = document.getElementById('filtro-cupom-sort')?.value || 'recentes';
+
+  let lista = App.cupons.filter(c => {
+    if (q && !c.codigo.toLowerCase().includes(q) && !(c.vendedora||'').toLowerCase().includes(q)) return false;
+    if (fStatus && c.status !== fStatus) return false;
+    if (fVend && (c.vendedora||'') !== fVend) return false;
+    return true;
+  });
+
+  // Ordenação
+  if (sort === 'usos')    lista.sort((a,b) => (b.usos||0) - (a.usos||0));
+  else if (sort === 'receita') lista.sort((a,b) => (b.receita_gerada||0) - (a.receita_gerada||0));
+  else if (sort === 'alpha')   lista.sort((a,b) => (a.codigo||'').localeCompare(b.codigo||''));
+  // 'recentes' = ordem do backend (já reverse)
 
   if (lista.length === 0) {
     grid.innerHTML = '<div class="empty-msg">Nenhum cupom encontrado</div>';
     return;
   }
-  grid.innerHTML = lista.map(c => {
-    const isAtivo = c.status === 'Ativo';
-    return `
-      <div class="admin-card">
-        <div class="cupom-card-code">${esc(c.codigo)}</div>
-        <div class="cupom-card-type">${c.tipo === '%' ? `${c.valor}% desconto` : 'Preço fixo'}</div>
-        <div class="cupom-card-validity">Validade: ${esc(c.validade)}</div>
-        <div class="cupom-card-benefits">
-          ${c.parcelamento === 'SIM' ? '<span class="badge badge-on" style="font-size:10px">3x sem juros</span>' : ''}
-          ${c.freteAcima ? `<span class="badge badge-on" style="font-size:10px">🚚 +R$${esc(c.freteAcima)}</span>` : ''}
-          <span style="color:var(--text2);font-size:11px">${c.usos} uso${c.usos !== 1 ? 's' : ''}</span>
+
+  grid.innerHTML = lista.map(c => _buildCupomCard(c)).join('');
+}
+
+function _atualizarStatsCupons() {
+  const cupons = App.cupons || [];
+  const ativos = cupons.filter(c => c.status === 'Ativo').length;
+  const usos   = cupons.reduce((s,c) => s + (c.usos||0), 0);
+  const receita = cupons.reduce((s,c) => s + (c.receita_gerada||0), 0);
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('cs-total', cupons.length);
+  set('cs-ativos', ativos);
+  set('cs-usos', usos);
+  set('cs-receita', 'R$ ' + receita.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
+}
+
+function _atualizarFiltroVendedoras() {
+  const sel = document.getElementById('filtro-cupom-vendedora');
+  if (!sel) return;
+  const vendedoras = [...new Set((App.cupons||[]).map(c => c.vendedora).filter(Boolean))].sort();
+  const atual = sel.value;
+  sel.innerHTML = '<option value="">Todas vendedoras</option>' +
+    vendedoras.map(v => `<option value="${escAttr(v)}" ${v===atual?'selected':''}>${esc(v)}</option>`).join('');
+}
+
+function _diasRestantes(validade) {
+  if (!validade || validade === '—' || /indeterminado/i.test(validade)) return null;
+  // Aceita "dd/mm/yyyy" ou "dd/mm/yyyy hh:mm"
+  const m = validade.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
+  if (!m) return null;
+  const fim = new Date(+m[3], +m[2]-1, +m[1], +(m[4]||23), +(m[5]||59));
+  const diff = Math.ceil((fim - Date.now()) / 86400000);
+  return diff;
+}
+
+function _buildCupomCard(c) {
+  const isAtivo = c.status === 'Ativo';
+  const isExp   = c.status === 'Expirado';
+  const tipo = c.tipo === '%'
+    ? `<span class="cc-tipo-val">${esc(c.valor)}%</span> <span class="cc-tipo-sub">desconto</span>`
+    : `<span class="cc-tipo-val">Preço fixo</span>`;
+
+  const dias = _diasRestantes(c.validade);
+  let validadeBadge = '';
+  if (c.validade === '—' || /indeterminado/i.test(c.validade)) {
+    validadeBadge = `<span class="cc-validade cc-val-permanente">♾️ Sem expiração</span>`;
+  } else if (dias != null) {
+    const cls = dias < 0 ? 'cc-val-exp' : (dias <= 7 ? 'cc-val-warn' : 'cc-val-ok');
+    const txt = dias < 0 ? `Expirado há ${Math.abs(dias)}d` : (dias === 0 ? 'Expira hoje' : `${dias}d restantes`);
+    validadeBadge = `<span class="cc-validade ${cls}">📅 ${esc(txt)}</span>`;
+  }
+
+  const vendedoraLine = c.vendedora
+    ? `<div class="cc-vend"><span class="cc-vend-icon">👤</span> <span class="cc-vend-name">${esc(c.vendedora)}</span></div>`
+    : `<div class="cc-vend cc-vend-none"><span class="cc-vend-icon">👤</span> <span>Sem vendedora atribuída</span></div>`;
+
+  const receita = (c.receita_gerada||0);
+  const receitaTxt = receita > 0
+    ? `R$ ${receita.toLocaleString('pt-BR',{minimumFractionDigits:2})}`
+    : '—';
+
+  const ultimoUso = c.ultimo_uso || '';
+  const ultimoUsoTxt = ultimoUso ? esc(ultimoUso.split(' ')[0]) : '—';
+
+  // Produtos aplicáveis: "todos" ou contagem
+  let prodTxt = 'Todos os produtos';
+  if (c.produtos && c.produtos !== 'todos') {
+    const n = c.produtos.split(',').filter(Boolean).length;
+    prodTxt = `${n} produto${n !== 1 ? 's' : ''} específico${n !== 1 ? 's' : ''}`;
+  }
+
+  const benefits = [];
+  if (c.parcelamento === 'SIM') benefits.push(`<span class="cc-benefit">💳 3x sem juros</span>`);
+  if (c.freteAcima) benefits.push(`<span class="cc-benefit">🚚 Frete grátis +R$ ${esc(c.freteAcima)}</span>`);
+
+  return `
+    <div class="cupom-card-v2 ${isAtivo ? 'cc-ativo' : (isExp ? 'cc-expirado' : 'cc-desativado')}">
+      <div class="cc-header">
+        <div class="cc-code-wrap">
+          <div class="cc-code">${esc(c.codigo)}</div>
+          <div class="cc-tipo">${tipo}</div>
         </div>
-        <div class="admin-card-footer">
-          <span class="badge ${isAtivo ? 'badge-on' : 'badge-off'}">${esc(c.status)}</span>
-          <div style="display:flex;gap:4px">
-            <button class="btn-xs ${isAtivo ? 'btn-xs-danger' : ''}"
-              onclick="toggleCupomAdmin('${escAttr(c.codigo)}','${c.status}')">
-              ${isAtivo ? 'Desativar' : 'Ativar'}
-            </button>
-            <button class="btn-xs btn-xs-danger"
-              onclick="apagarCupomAdmin('${escAttr(c.codigo)}')">🗑️</button>
-          </div>
+        <span class="cc-status cc-status-${isAtivo?'on':(isExp?'exp':'off')}">${esc(c.status)}</span>
+      </div>
+
+      ${vendedoraLine}
+
+      <div class="cc-row">
+        ${validadeBadge}
+        <span class="cc-prod-badge">📦 ${esc(prodTxt)}</span>
+      </div>
+
+      ${benefits.length ? `<div class="cc-benefits">${benefits.join('')}</div>` : ''}
+
+      <div class="cc-stats">
+        <div class="cc-stat">
+          <div class="cc-stat-label">Usos</div>
+          <div class="cc-stat-val">${c.usos||0}</div>
         </div>
-      </div>`;
-  }).join('');
+        <div class="cc-stat">
+          <div class="cc-stat-label">Receita</div>
+          <div class="cc-stat-val cc-stat-revenue">${receitaTxt}</div>
+        </div>
+        <div class="cc-stat">
+          <div class="cc-stat-label">Último uso</div>
+          <div class="cc-stat-val">${ultimoUsoTxt}</div>
+        </div>
+      </div>
+
+      <div class="cc-footer">
+        <button class="btn-xs ${isAtivo ? 'btn-xs-danger' : 'btn-xs-accent'}"
+          onclick="toggleCupomAdmin('${escAttr(c.codigo)}','${c.status}')">
+          ${isAtivo ? '⏸ Desativar' : '▶ Ativar'}
+        </button>
+        <button class="btn-xs btn-xs-danger"
+          onclick="apagarCupomAdmin('${escAttr(c.codigo)}')">🗑️ Apagar</button>
+      </div>
+    </div>`;
 }
 
 function toggleFormCupom() {
