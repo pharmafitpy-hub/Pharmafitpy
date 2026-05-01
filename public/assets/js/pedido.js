@@ -1305,6 +1305,13 @@ function buildReview() {
       `<div style="font-size:.75rem;color:var(--green);margin-bottom:5px">${i}</div>`
     ).join('');
   })();
+  // Linha de saldo de indicação usado (se cliente marcou o checkbox)
+  const usandoSaldo = document.getElementById('usar_saldo_indicacao_chk')?.checked && _saldoIndicacaoUsavel > 0;
+  const saldoIndicHtml = usandoSaldo ? `
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:.85rem;color:#22C55E;font-weight:700">
+      <span>💰 Saldo de indicação</span>
+      <span>− R$ ${_saldoIndicacaoUsavel.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+    </div>` : '';
   document.getElementById('review-total-box').innerHTML = `
     <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:.85rem;color:rgba(255,255,255,.6)">
       <span>Subtotal produtos</span><span>R$ ${subtotalBruto.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
@@ -1313,6 +1320,7 @@ function buildReview() {
       <span>Frete</span><span>${freteValor===0 ? '🎉 Grátis' : 'R$ '+freteValor.toFixed(2).replace('.',',')}</span>
     </div>
     ${descontoHtml}
+    ${saldoIndicHtml}
     ${beneficiosReviewHtml}
     <div style="border-top:1px solid rgba(255,255,255,.15);margin:10px 0"></div>
     <div class="rtb-label">Total do Pedido</div>
@@ -1485,7 +1493,9 @@ async function _sendWhatsAppCore(btnWA, _btnHtmlOrig) {
   }
 }
 
-function getFinalTotal() {
+// Total ANTES do desconto de saldo de indicação (usado pra calcular quanto
+// do saldo pode ser usado, evitando recursão).
+function getBaseTotal() {
   let total = getTotal() + freteValor;
   if (selectedPayment === 'Cartão de Crédito') {
     const parc   = parseInt(document.getElementById('f_parcelas').value);
@@ -1497,6 +1507,17 @@ function getFinalTotal() {
   if (cupomAplicado) {
     const desc = calcularDescontoCupom();
     total -= desc;
+    if (total < 0) total = 0;
+  }
+  return total;
+}
+
+function getFinalTotal() {
+  let total = getBaseTotal();
+  // Desconto de saldo de indicação (se cliente marcou o checkbox)
+  const chk = document.getElementById('usar_saldo_indicacao_chk');
+  if (chk && chk.checked && _saldoIndicacaoUsavel > 0) {
+    total -= _saldoIndicacaoUsavel;
     if (total < 0) total = 0;
   }
   return total;
@@ -1866,15 +1887,16 @@ function atualizarUsoSaldoIndicacao() {
   if (!chk.checked) {
     _saldoIndicacaoUsavel = 0;
     det.style.display = 'none';
-    return;
+  } else {
+    // Calcula com base no total ANTES do saldo (evita loop em getFinalTotal)
+    const baseTotal = (typeof getBaseTotal === 'function') ? getBaseTotal() : 0;
+    _saldoIndicacaoUsavel = Math.min(_saldoIndicacaoDisponivel, baseTotal);
+    _saldoIndicacaoUsavel = Math.round(_saldoIndicacaoUsavel * 100) / 100;
+    if (valEl) valEl.textContent = 'R$ ' + _saldoIndicacaoUsavel.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+    det.style.display = '';
   }
-  // Lê o total atual exibido (já com cupom + frete aplicados)
-  const totalEl = document.getElementById('total-display');
-  const totalAtual = parseFloat(String(totalEl?.textContent||'0').replace(/\./g,'').replace(',','.')) || 0;
-  _saldoIndicacaoUsavel = Math.min(_saldoIndicacaoDisponivel, totalAtual);
-  _saldoIndicacaoUsavel = Math.round(_saldoIndicacaoUsavel * 100) / 100;
-  if (valEl) valEl.textContent = 'R$ ' + _saldoIndicacaoUsavel.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-  det.style.display = '';
+  // Re-renderiza o review pra atualizar o total mostrado
+  if (typeof buildReview === 'function') buildReview();
 }
 
 // Hook: quando usuário entra no Step 4 (revisão), carrega saldo
