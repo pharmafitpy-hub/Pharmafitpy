@@ -563,6 +563,39 @@
         </div>
       </div>
 
+      <!-- Indicação -->
+      <div class="config-section">
+        <h3 class="cfg-section-title">🎁 Programa de Indicação</h3>
+        <div class="cfg-form">
+          <div class="cfg-row" style="display:flex;gap:18px;flex-wrap:wrap">
+            <div class="field-inline" style="flex:0 0 auto">
+              <label>Percentual de comissão</label>
+              <div style="display:flex;align-items:center;gap:8px">
+                <input type="number" id="cfg-ind-pct" min="0" max="100" step="0.5"
+                  style="width:80px;text-align:center"/>
+                <span style="font-size:12px;color:var(--text2)">% sobre o total do pedido</span>
+              </div>
+            </div>
+            <div class="field-inline" style="flex:0 0 auto">
+              <label>Carência antes de liberar</label>
+              <div style="display:flex;align-items:center;gap:8px">
+                <input type="number" id="cfg-ind-dias" min="0" max="365"
+                  style="width:80px;text-align:center"/>
+                <span style="font-size:12px;color:var(--text2)">dias após o pedido</span>
+              </div>
+            </div>
+            <div style="align-self:flex-end">
+              <button class="btn-sm btn-accent" onclick="salvarConfigIndicacao()">💾 Salvar</button>
+              <span id="cfg-ind-status" style="margin-left:10px;font-size:12px"></span>
+            </div>
+          </div>
+          <p style="font-size:11px;color:var(--text2);margin:6px 0 0">
+            Comissão é calculada na primeira compra de cada cliente indicado.
+            Após a carência (e pedido pago/enviado), a comissão fica disponível pro indicador no perfil dele.
+          </p>
+        </div>
+      </div>
+
       <!-- Notifications -->
       <div class="config-section">
         <h3 class="cfg-section-title">🔔 Notificações de Pedidos</h3>

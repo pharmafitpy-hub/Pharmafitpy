@@ -67,6 +67,20 @@
       </div>
     </div>
 
+    <!-- Saldo de comissão -->
+    <div class="pf-comissao-grid">
+      <div class="pf-comissao-card pf-com-liberada">
+        <div class="pf-com-label">💰 Disponível</div>
+        <div class="pf-com-valor" id="pf-com-liberada">R$ 0,00</div>
+        <div class="pf-com-meta" id="pf-com-liberada-qtd">0 indicações</div>
+      </div>
+      <div class="pf-comissao-card pf-com-pendente">
+        <div class="pf-com-label">⏳ Pendente</div>
+        <div class="pf-com-valor" id="pf-com-pendente">R$ 0,00</div>
+        <div class="pf-com-meta" id="pf-com-pendente-qtd">0 indicações</div>
+      </div>
+    </div>
+
     <div class="pf-ind-info">
       <h3>Como funciona</h3>
       <ol class="pf-ind-steps">
@@ -184,23 +198,36 @@ let _pfCodigoCache = '';
 async function pfCarregarIndicacao() {
   const el = document.getElementById('pf-ind-codigo');
   if (!el) return;
-  if (_pfCodigoCache) { _pfRenderCodigo(_pfCodigoCache); return; }
-  // Tenta sessão local primeiro (vem do cadastro)
-  if (_pfSess && _pfSess.codigo_indicacao) { _pfCodigoCache = _pfSess.codigo_indicacao; _pfRenderCodigo(_pfCodigoCache); return; }
+  // Sempre busca do servidor pra ter saldo atualizado (auto-libera comissões pendentes)
   try {
     const data = await cliPost_('meu_perfil', { token: _pfSess.token });
-    if (data && data.ok && data.cliente && data.cliente.codigo_indicacao) {
-      _pfCodigoCache = data.cliente.codigo_indicacao;
-      // Persiste no localStorage pra próximas visitas
-      _pfSess.codigo_indicacao = _pfCodigoCache;
-      setClienteSession(_pfSess);
-      _pfRenderCodigo(_pfCodigoCache);
+    if (data && data.ok && data.cliente) {
+      const codigo = data.cliente.codigo_indicacao || '';
+      if (codigo) {
+        _pfCodigoCache = codigo;
+        _pfSess.codigo_indicacao = codigo;
+        setClienteSession(_pfSess);
+        _pfRenderCodigo(codigo);
+      }
+      _pfRenderComissao(data.cliente.indicacao || {});
     } else {
       el.textContent = '⚠️ Não foi possível carregar';
     }
   } catch (e) {
     el.textContent = '⚠️ Erro de conexão';
   }
+}
+
+function _pfRenderComissao(indic) {
+  const fmt = (v) => 'R$ ' + (parseFloat(v||0)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  setText('pf-com-liberada',     fmt(indic.comissao_liberada));
+  setText('pf-com-pendente',     fmt(indic.comissao_pendente));
+  const plural = (n) => n === 1 ? 'indicação' : 'indicações';
+  const liberadasQtd = indic.qtd_indicacoes_liberadas || 0;
+  const pendentesQtd = indic.qtd_indicacoes_pendentes || 0;
+  setText('pf-com-liberada-qtd', `${liberadasQtd} ${plural(liberadasQtd)}`);
+  setText('pf-com-pendente-qtd', `${pendentesQtd} ${plural(pendentesQtd)}`);
 }
 function _pfRenderCodigo(codigo) {
   const el = document.getElementById('pf-ind-codigo');

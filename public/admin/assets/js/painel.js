@@ -1073,11 +1073,45 @@ function salvarConfigArquivamento(val) {
   if (App.view === 'kanban') renderKanban();
 }
 
+async function carregarConfigIndicacao() {
+  try {
+    const data = await API.call({ action: 'get_config_indicacao' });
+    if (data && data.ok) {
+      const pctEl = document.getElementById('cfg-ind-pct');
+      const diasEl = document.getElementById('cfg-ind-dias');
+      if (pctEl) pctEl.value = data.pct_display || '5.0';
+      if (diasEl) diasEl.value = String(data.carencia_dias || 14);
+    }
+  } catch (e) { /* silently */ }
+}
+
+async function salvarConfigIndicacao() {
+  const pctEl = document.getElementById('cfg-ind-pct');
+  const diasEl = document.getElementById('cfg-ind-dias');
+  const status = document.getElementById('cfg-ind-status');
+  if (!pctEl || !diasEl) return;
+  const pct  = parseFloat(pctEl.value);
+  const dias = parseInt(diasEl.value);
+  if (status) { status.textContent = '⏳ Salvando…'; status.style.color = 'var(--text2)'; }
+  try {
+    const data = await API.call({ action: 'set_config_indicacao', pct, carencia_dias: dias });
+    if (data && data.ok) {
+      if (status) { status.textContent = '✅ Salvo'; status.style.color = '#22C55E'; setTimeout(() => status.textContent = '', 2500); }
+      showToast('Configuração de indicação salva');
+    } else {
+      if (status) { status.textContent = '⚠️ ' + (data?.erro || 'Erro'); status.style.color = '#FCA5A5'; }
+    }
+  } catch (e) {
+    if (status) { status.textContent = '⚠️ Erro de conexão'; status.style.color = '#FCA5A5'; }
+  }
+}
+
 function renderConfig() {
   const archSel = document.getElementById('cfg-arch-days');
   if (archSel) archSel.value = String(getArchDays());
   const stockEl = document.getElementById('cfg-stock-alert');
   if (stockEl) stockEl.value = String(getStockAlertThreshold());
+  carregarConfigIndicacao();
   updateNotifStatus();
 
   const tbody = document.getElementById('admins-tbody');
