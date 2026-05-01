@@ -14,23 +14,94 @@ function escAttr(s) {
 
 // ─── STATE ──────────────────────────────────────────────────────────────────
 // ─── CORRELAÇÕES ────────────────────────────────────────────────────────────
+// "Você se esqueceu de algo?" — sugere produtos relacionados ao que está no
+// carrinho. Lógica de domínio (peptídeos/estética):
+//   • Vials/pó → sempre acompanha água bact (32) + seringa (45)
+//   • Canetas GLP-1 → agulhas (41) + porta ampolas (53)
+//   • Sinérgicos: BPC↔TB, NAD↔SS-31↔Epithalon, Selank↔Semax, GH-secretagogos
+//   • Up-sell por categoria: GHK-Cu↔Klow↔GLOW, Sculptra↔Radiesse↔Biofill
 const CORRELACOES = {
-  '1':  ['32','42','8'],    '2':  ['32','46','7'],    '3':  ['32','46','7'],
-  '4':  ['42','32'],        '5':  ['42','32'],        '6':  ['32','42','7'],
-  '7':  ['32','46','8'],    '8':  ['7','32','46'],    '9':  ['24','36','32'],
-  '10': ['12','15','46'],   '11': ['46','16','9'],    '12': ['10','15','24'],
-  '13': ['16','9','20'],    '14': ['20','21'],         '15': ['12','10','46'],
-  '16': ['18','32','46'],   '17': ['32','46','25'],   '18': ['16','32','46'],
-  '19': ['20','32','46'],   '20': ['21','14'],         '21': ['20','32','14'],
-  '22': ['23','32','20'],   '23': ['22','32','20'],   '24': ['9','36','32'],
-  '25': ['32','46','20'],   '26': ['7','32','46'],    '27': ['24','36','32'],
-  '28': ['24','36','32'],   '29': ['32','42','7'],    '30': ['21','14'],
-  '31': ['42','32'],        '32': ['42','46'],         '33': ['32','46','7'],
-  '34': ['32','46'],        '36': ['32','24','9'],    '37': ['32','46'],
-  '38': ['32','46','25'],   '39': ['32','46'],         '41': ['32','46','20'],
-  '42': ['32','46'],        '43': ['46','12','48'],   '44': ['46','12','48'],
-  '45': ['46','12','10'],   '46': ['32','42'],         '47': ['46','12','15'],
-  '48': ['46','43','12'],   '49': ['46','44','12'],
+  // GLP-1 / GIP — emagrecimento
+  '1':  ['41','53','6'],         // Tirzepatida Pen TNL → agulhas, porta ampolas, Tirzepatida USA (alternativa)
+  '2':  ['32','45','4'],         // Retatrutide vial PeptiSciences → água bact, seringa, Retatrutide Pen
+  '3':  ['32','45','4'],         // Retatrutide 10mg 4 Vials → água, seringa, Retatrutide Pen
+  '4':  ['41','53','5'],         // Retatrutide Pen TNL → agulhas, porta ampolas, alternativa Oxygen
+  '5':  ['41','53','4'],         // Retatrutide Pen Oxygen → agulhas, porta ampolas, alternativa TNL
+  '6':  ['32','45','1'],         // Tirzepatida USA vial → água, seringa, Tirzepatida Pen
+  '29': ['32','45','1'],         // Tirzepatida 60mg vial → água, seringa, Tirzepatida Pen
+  '31': ['32','45','29'],        // Tirzepatida 150mg SEM ÁGUA → água bact obrigatória, seringa
+  '56': ['32','45','4'],         // Retatrutide 40mg USA → água, seringa, Retatrutide Pen
+  '58': ['32','45','1'],         // Tirzepatida Tirzec → água, seringa, Tirzepatida Pen
+  '59': ['32','45','58'],        // TG Tirzepatida 4 ampolas → água, seringa, Tirzec (alternativa menor)
+  '60': ['36','14','32'],        // Lipoless → CBL 514, Momm, água
+
+  // Peptídeos lipolíticos / mimético exercício
+  '7':  ['32','45','33'],        // AOD-9604 → água, seringa, HGH-Frag
+  '33': ['32','45','7'],         // HGH-Frag → água, seringa, AOD-9604
+  '38': ['39','7','32'],         // SLU-pp-322 inj → SLU oral, AOD, água
+  '39': ['38','7','33'],         // SLU-pp-322 oral → SLU inj, AOD, HGH-Frag
+
+  // BPC / TB — reparador, cicatrização
+  '16': ['18','32','45'],        // BPC-157 → TB-500, água, seringa
+  '18': ['16','32','45'],        // TB-500 → BPC-157, água, seringa
+  '19': ['25','32','45'],        // BPC + TB Blend → CJC+IPA, água, seringa
+  '34': ['32','45','16'],        // Most-c → água, seringa, BPC-157
+
+  // GH-secretagogos
+  '25': ['37','33','32'],        // CJC no DAC + IPA → Ipamorelin, HGH-Frag, água
+  '37': ['25','33','32'],        // Ipamorelin → CJC+IPA, HGH-Frag, água
+  '40': ['37','25','32'],        // Semorelin → Ipamorelin, CJC+IPA, água
+  '55': ['25','37','32'],        // Tesamorelin → CJC+IPA, Ipamorelin, água
+
+  // Cosméticos / cabelo / pele (Klow, GHK-Cu, GLOW)
+  '8':  ['9','24','32'],         // Klow 80mg → GHK-Cu 100, GLOW, água
+  '9':  ['8','24','32'],         // GHK-Cu 100mg → Klow, GLOW, água
+  '24': ['9','8','49'],          // GLOW 70mg → GHK-Cu, Klow, Glow injetável
+  '26': ['9','24','32'],         // Klow 80mg (id duplicado) → GHK-Cu, GLOW, água
+  '27': ['9','8','24'],          // GHK-Cu 50mg → GHK-Cu 100, Klow, GLOW
+  '28': ['9','8','24'],          // GHK-Cu 50mg (dup) → GHK-Cu 100, Klow, GLOW
+  '49': ['9','24','12'],         // Glow injetável → GHK-Cu, GLOW oral, BiologicalFace
+
+  // Cognitivo / nootrópicos / libido
+  '17': ['22','23','32'],        // PT-141 → Selank, Semax, água
+  '22': ['23','17','32'],        // Selank → Semax, PT-141, água
+  '23': ['22','17','32'],        // Semax → Selank, PT-141, água
+
+  // Longevidade / mitocondrial
+  '20': ['30','21','35'],        // NAD+ 500mg → NAD+ 1000mg (up-sell), SS-31, Epithalon
+  '21': ['20','30','35'],        // SS-31 → NAD+ 500, NAD+ 1000, Epithalon
+  '30': ['20','21','35'],        // NAD+ 1000mg → NAD+ 500, SS-31, Epithalon
+  '35': ['20','21','30'],        // Epithalon → NAD+ 500, SS-31, NAD+ 1000
+
+  // Esteroides / hormonal
+  '11': ['13','32','45'],        // Durateston → Oxandrolona, água, seringa
+  '13': ['11','7','33'],         // Oxandrolona → Durateston, AOD, HGH-Frag
+
+  // Estética dermal / bioestimuladores
+  '10': ['46','50','12'],        // Sculptra → Radiesse, Biofill Contour, BiologicalFace
+  '12': ['44','15','50'],        // BiologicalFace → Israderm, Line Body, Biofill
+  '14': ['15','36','60'],        // Momm → Line Body, CBL 514, Lipoless
+  '15': ['14','36','12'],        // Line Body → Momm, CBL 514, BiologicalFace
+  '36': ['14','15','60'],        // CBL 514 → Momm, Line Body, Lipoless
+  '46': ['10','50','12'],        // Radiesse → Sculptra, Biofill Contour, BiologicalFace
+  '50': ['51','52','10'],        // Biofill Contour → Shape, Subskin, Sculptra
+  '51': ['50','52','46'],        // Biofill Shape → Contour, Subskin, Radiesse
+  '52': ['50','51','10'],        // Biofill Subskin → Contour, Shape, Sculptra
+
+  // Toxinas botulínicas
+  '42': ['47','48','32'],        // Nabota 150UI → Dysport, Botox Allergan, água
+  '43': ['42','47','48'],        // Nabota 100UI → Nabota 150, Dysport, Botox
+  '44': ['42','12','32'],        // Israderm 150UI → Nabota, BiologicalFace, água
+  '47': ['48','42','32'],        // Dysport → Botox, Nabota, água
+  '48': ['47','42','32'],        // Botox Allergan → Dysport, Nabota, água
+
+  // Acessórios — sugerem o produto mais comum que precisa deles
+  '32': ['45','41','16'],        // Água Bacteriostática → seringa, agulhas caneta, BPC (exemplo)
+  '41': ['1','4','53'],          // Agulhas caneta → Tirzepatida Pen, Retatrutide Pen, Porta ampolas
+  '45': ['32','16','41'],        // Seringa super fina → água, BPC, agulhas
+  '53': ['41','1','4'],          // Porta ampolas → agulhas, canetas Tirz/Reta
+  '54': ['32','41','45'],        // Caneta Injetora Reutilizável → água, agulhas, seringa
+  '57': ['32','41','54'],        // Caneta Descartável → água, agulhas, caneta reutilizável
 };
 
 let CATALOG = [];
@@ -58,6 +129,88 @@ let cupomData      = null; // objeto {tipo, valor, produtos, precos}
 // Estado da indicação aplicada (campo unificado f_codigo aceita cupom OU indicação)
 let _indicacaoAplicada = false;
 let _indicacaoCodigo   = '';
+
+// ─── MINI-CARRINHO EXPANSÍVEL (Step 1) ─────────────────────────────────────
+// Permite ver, alterar quantidade e remover itens sem precisar voltar ao
+// card do produto na grid (que pode estar oculto pelo filtro de categoria).
+function toggleCartExpand() {
+  const panel = document.getElementById('cart-expanded');
+  const icon  = document.getElementById('tb-toggle-icon');
+  if (!panel) return;
+  // Não expande se carrinho vazio
+  if (Object.keys(cart).length === 0) return;
+  const open = panel.style.display !== 'none';
+  panel.style.display = open ? 'none' : 'block';
+  if (icon) icon.textContent = open ? '▲' : '▼';
+  if (!open) renderCartExpanded();
+}
+
+function renderCartExpanded() {
+  const list = document.getElementById('ce-list');
+  if (!list) return;
+  // Se vazio, fecha automático
+  if (Object.keys(cart).length === 0) {
+    const panel = document.getElementById('cart-expanded');
+    const icon  = document.getElementById('tb-toggle-icon');
+    if (panel) panel.style.display = 'none';
+    if (icon)  icon.textContent = '▲';
+    list.innerHTML = '';
+    return;
+  }
+  list.innerHTML = Object.keys(cart).map(key => {
+    const { id, varIdx } = parseCartKey(key);
+    const p = CATALOG.find(x => x.id === id);
+    if (!p) return '';
+    const qty = cart[key];
+    const price = getPriceByKey(key);
+    const subtotal = price * qty;
+    const variantLabel = getVariantLabel(key);
+    const dose = (varIdx != null && variantLabel) ? variantLabel : (p.conc || '');
+    return `
+      <div class="ce-item">
+        <span class="ce-icon">${esc(p.icon || '💊')}</span>
+        <div class="ce-info">
+          <div class="ce-name">${esc(p.name)}</div>
+          ${dose ? `<div class="ce-dose">${esc(dose)}</div>` : ''}
+          <div class="ce-price">R$ ${price.toLocaleString('pt-BR',{minimumFractionDigits:2})} · un.</div>
+        </div>
+        <div class="ce-qty">
+          <button class="ce-qty-btn" onclick="event.stopPropagation(); mudarQtdCarrinho('${escAttr(key)}', -1)" aria-label="Diminuir">−</button>
+          <span class="ce-qty-val">${qty}</span>
+          <button class="ce-qty-btn" onclick="event.stopPropagation(); mudarQtdCarrinho('${escAttr(key)}', +1)" aria-label="Aumentar">+</button>
+        </div>
+        <div class="ce-subtotal">R$ ${subtotal.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+        <button class="ce-remove" onclick="event.stopPropagation(); removerDoCarrinho('${escAttr(key)}')" aria-label="Remover do carrinho">✕</button>
+      </div>`;
+  }).join('');
+}
+
+function mudarQtdCarrinho(key, delta) {
+  if (cart[key] == null) return;
+  const newQty = Math.max(0, Math.min(999, cart[key] + delta));
+  if (newQty === 0) {
+    delete cart[key];
+  } else {
+    cart[key] = newQty;
+  }
+  // Re-renderiza tudo: grid de produtos (atualizar checkmarks) + mini-cart + total
+  if (typeof renderProducts === 'function') renderProducts();
+  updateTotal();
+}
+
+function removerDoCarrinho(key) {
+  delete cart[key];
+  if (typeof renderProducts === 'function') renderProducts();
+  updateTotal();
+}
+
+function limparCarrinho() {
+  if (Object.keys(cart).length === 0) return;
+  if (!confirm('Remover todos os itens do carrinho?')) return;
+  cart = {};
+  if (typeof renderProducts === 'function') renderProducts();
+  updateTotal();
+}
 
 // ─── REFAZER ÚLTIMO PEDIDO ─────────────────────────────────────────────────
 // Mostra atalho no Step 1 pra cliente logado com histórico. Carrega itens
@@ -1100,17 +1253,6 @@ function renderRecomendados() {
   const recs = CATALOG.filter(p => p.destaque === 'recomendado');
   if (recs.length === 0) { sec.style.display = 'none'; return; }
   sec.style.display = '';
-  // Subtítulo dinâmico — usa nome do cliente logado se houver
-  const titleEl = sec.querySelector('.cat-section-title');
-  const subEl   = sec.querySelector('.cat-section-sub');
-  let nome = '';
-  try {
-    const sess = (typeof getClienteSession === 'function') ? getClienteSession() : null;
-    nome = (sess && (sess.apelido || sess.nome || sess.responsavel)) || '';
-    if (nome) nome = String(nome).split(' ')[0]; // primeiro nome
-  } catch(e) {}
-  if (titleEl) titleEl.textContent = nome ? `💡 Pra você, ${nome}` : '💡 Recomendados pra você';
-  if (subEl)   subEl.textContent   = nome ? 'Selecionados com base no seu perfil' : 'Selecionados';
   track.innerHTML = recs.map(p => {
     const promoAtiva = isPromoAtiva(p);
     const price = getEffectivePrice(p);
@@ -1267,6 +1409,8 @@ function updateTotal() {
   if (selectedPayment === 'Cartão de Crédito') calcInstallment();
   // Persiste carrinho a cada mudança
   saveCartToStorage();
+  // Atualiza mini-carrinho expandido (se aberto)
+  renderCartExpanded();
 }
 
 function getTotal() {

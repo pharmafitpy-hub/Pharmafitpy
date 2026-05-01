@@ -16,7 +16,7 @@
 <header>
   <img src="assets/img/logo.png" alt=""
        onerror="this.style.display='none'; document.getElementById('logo-text').style.display='block'"/>
-  <div id="logo-text" style="display:none; width:44px; height:44px; background:#F59E0B; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.2rem;">📦</div>
+  <div id="logo-text" class="logo-fallback" style="display:none">📦</div>
   <div>
     <h1><span data-client-name></span></h1>
     <span>Formulário de Pedido</span>
@@ -127,7 +127,7 @@
     <!-- RECOMENDADOS -->
     <section class="rec-section" id="rec-section" style="display:none">
       <div class="cat-section-head">
-        <h2 class="cat-section-title">💡 Recomendados pra você</h2>
+        <h2 class="cat-section-title">💡 Recomendados</h2>
         <span class="cat-section-sub">Selecionados</span>
       </div>
       <div class="rec-track" id="rec-track"></div>
@@ -179,14 +179,22 @@
     <div id="tag-filters" style="display:none"></div>
 
     <div class="cart-sticky">
-      <div class="total-bar">
-        <div>
-          <div class="tb-label">Itens selecionados</div>
+      <!-- Mini-carrinho expansível (lista de itens com qty e remover) -->
+      <div class="cart-expanded" id="cart-expanded" style="display:none">
+        <div class="ce-header">
+          <span>🛒 Itens no carrinho</span>
+          <button class="ce-clear-all" onclick="limparCarrinho()">Limpar tudo</button>
+        </div>
+        <div class="ce-list" id="ce-list"></div>
+      </div>
+      <div class="total-bar" onclick="toggleCartExpand()" id="total-bar">
+        <div class="tb-toggle-side">
+          <div class="tb-label">Itens selecionados <span class="tb-toggle-icon" id="tb-toggle-icon">▲</span></div>
           <div class="tb-items" id="items-count">0 produto(s)</div>
         </div>
-        <div style="text-align:right">
+        <div class="tb-right">
           <div class="tb-label">Total do Pedido</div>
-          <div style="display:flex; align-items:baseline; gap:4px; justify-content:flex-end">
+          <div class="tb-value-row">
             <span class="tb-currency">R$</span>
             <span class="tb-total" id="total-display">0,00</span>
           </div>
@@ -207,9 +215,9 @@
     </div>
 
     <!-- "Já tem conta?" link no topo -->
-    <div id="lp-ja-tem-conta" style="text-align:center;margin-bottom:14px">
-      <span style="font-size:.82rem;color:var(--gray)">Já tem conta? </span>
-      <span class="lp-link" onclick="lpToggleLogin()" style="color:var(--accent);font-weight:600">Já sou cadastrado</span>
+    <div id="lp-ja-tem-conta" class="lp-ja-tem-conta">
+      <span class="lp-ja-tem-conta-prompt">Já tem conta? </span>
+      <span class="lp-link lp-ja-tem-conta-link" onclick="lpToggleLogin()">Já sou cadastrado</span>
     </div>
 
     <!-- Painel de login (oculto, expande ao clicar) -->
@@ -222,7 +230,7 @@
       </div>
       <div class="lp-loading" id="lp-loading">⏳ Buscando dados...</div>
       <div class="lp-erro" id="lp-erro"></div>
-      <span class="lp-link" onclick="lpToggleLogin()" style="margin-top:6px;display:inline-block">← Fechar</span>
+      <span class="lp-link lp-link-fechar" onclick="lpToggleLogin()">← Fechar</span>
     </div>
 
     <!-- Formulário — visível por padrão -->
@@ -250,17 +258,17 @@
         <label>E-mail <span class="required-mark">*</span></label>
         <input type="email" id="f_email" placeholder="contato@clinica.com"/>
       </div>
-      <div class="field" style="max-width:170px">
+      <div class="field field-narrow-cep">
         <label>CEP de Entrega <span class="required-mark">*</span></label>
         <input type="text" id="f_cep_entrega" placeholder="00000-000" maxlength="9"
           oninput="this.value=this.value.replace(/\D/g,'').replace(/^(\d{5})(\d)/,'$1-$2'); if(this.value.replace(/\D/g,'').length===8) preencherEnderecoViaCEP()"/>
-        <div id="cep-end-loading" style="display:none;font-size:.72rem;color:var(--gray);margin-top:3px">⏳ Buscando endereço...</div>
+        <div id="cep-end-loading" class="cep-loading" style="display:none">⏳ Buscando endereço...</div>
       </div>
       <div class="field">
         <label>Rua / Logradouro <span class="required-mark">*</span></label>
         <input type="text" id="f_rua" placeholder="Ex: Rua das Flores"/>
       </div>
-      <div class="field" style="max-width:130px">
+      <div class="field field-narrow-num">
         <label>Número <span class="required-mark">*</span></label>
         <input type="text" id="f_numero" placeholder="Ex: 123"/>
       </div>
@@ -276,7 +284,7 @@
         <label>Cidade</label>
         <input type="text" id="f_cidade" placeholder="São Paulo"/>
       </div>
-      <div class="field" style="max-width:100px">
+      <div class="field field-narrow-uf">
         <label>Estado</label>
         <input type="text" id="f_estado" placeholder="SP" maxlength="2"/>
       </div>
@@ -317,7 +325,7 @@
 
     <!-- Parcelamento (só para cartão) -->
     <div class="installment-wrap" id="installment-wrap">
-      <div id="cupom-parc-badge" style="display:none;background:rgba(245,158,11,.12);border:1px solid var(--accent);border-radius:8px;padding:8px 14px;font-size:.82rem;color:var(--accent);margin-bottom:12px">
+      <div id="cupom-parc-badge" class="cupom-parc-badge" style="display:none">
         ⚡ Cupom ativo: parcelas 1× a 3× sem juros!
       </div>
       <div class="form-grid">
@@ -334,7 +342,7 @@
         </div>
         <div class="field">
           <label>Valor por Parcela</label>
-          <input type="text" id="f_parcela_val" readonly style="color: var(--accent); font-weight:700;"/>
+          <input type="text" id="f_parcela_val" class="parcela-val-input" readonly/>
         </div>
       </div>
     </div>
@@ -343,17 +351,17 @@
     <div class="frete-section">
       <div class="frete-header">🚚 Calcular Frete (Correios)</div>
       <div class="frete-body">
-        <div style="display:flex; gap:10px; align-items:flex-end">
-          <div class="field" style="flex:1">
+        <div class="frete-input-row">
+          <div class="field field-flex-1">
             <label>CEP de Destino</label>
             <input type="text" id="f_frete_cep" placeholder="00000-000" maxlength="9"
               oninput="this.value=this.value.replace(/\D/g,'').replace(/^(\d{5})(\d)/,'$1-$2')"
               onkeydown="if(event.key==='Enter') calcFrete()"/>
           </div>
-          <button class="btn btn-next" style="margin-bottom:0;padding:10px 18px;font-size:.85rem" onclick="calcFrete()">Calcular</button>
+          <button class="btn btn-next btn-calc-frete" onclick="calcFrete()">Calcular</button>
         </div>
-        <div id="frete-loading" style="display:none;text-align:center;padding:12px;color:var(--gray);font-size:.85rem">⏳ Consultando Correios...</div>
-        <div id="frete-error" style="display:none;background:rgba(231,76,60,.12);border:1px solid var(--danger);border-radius:8px;padding:10px 14px;font-size:.83rem;color:#f5a;margin-top:10px"></div>
+        <div id="frete-loading" class="frete-loading-msg" style="display:none">⏳ Consultando Correios...</div>
+        <div id="frete-error" class="frete-error-msg" style="display:none"></div>
         <div class="frete-gratis" id="frete-gratis" style="display:none"></div>
         <div class="frete-metodos" id="frete-metodos" style="display:none">
           <div class="frete-opt" id="fo-sedex" onclick="selecionarFrete('sedex')">
@@ -372,7 +380,7 @@
       </div>
     </div>
 
-    <div class="field" style="margin-top:16px">
+    <div class="field mt-16">
       <label>Observações de Pagamento</label>
       <textarea id="f_obs_pag" placeholder="Alguma informação adicional sobre o pagamento?"></textarea>
     </div>
@@ -419,15 +427,15 @@
     </div>
 
     <!-- Saldo de indicação (só aparece se cliente logado tem saldo) -->
-    <div class="cupom-section" id="saldo-indicacao-section" style="margin-top:14px;display:none">
+    <div class="cupom-section mt-14" id="saldo-indicacao-section" style="display:none">
       <div class="cupom-header">💰 Seu Saldo de Indicação</div>
-      <div id="saldo-indicacao-info" style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:12px 14px">
-        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:.92rem">
-          <input type="checkbox" id="usar_saldo_indicacao_chk" onchange="atualizarUsoSaldoIndicacao()" style="width:18px;height:18px;cursor:pointer"/>
-          <span>Usar <strong id="saldo-disp-display" style="color:#22C55E"></strong> nesse pedido</span>
+      <div id="saldo-indicacao-info" class="saldo-indicacao-info">
+        <label class="saldo-toggle-label">
+          <input type="checkbox" id="usar_saldo_indicacao_chk" onchange="atualizarUsoSaldoIndicacao()"/>
+          <span>Usar <strong id="saldo-disp-display" class="saldo-amount"></strong> nesse pedido</span>
         </label>
-        <div id="saldo-usado-detalhe" style="display:none;font-size:.78rem;color:var(--gray);margin-top:8px;padding-left:28px">
-          Será descontado <strong id="saldo-usado-valor" style="color:#22C55E"></strong> do total. Saldo restante fica pro próximo pedido.
+        <div id="saldo-usado-detalhe" class="saldo-detalhe" style="display:none">
+          Será descontado <strong id="saldo-usado-valor" class="saldo-amount"></strong> do total. Saldo restante fica pro próximo pedido.
         </div>
       </div>
     </div>
@@ -443,7 +451,7 @@
         <div class="rec-rev-group-label">💡 Leve também</div>
         <div class="rec-grid" id="rec-rev-leve-grid"></div>
       </div>
-      <div id="rec-rev-hist" style="display:none; margin-top:14px">
+      <div id="rec-rev-hist" class="mt-14" style="display:none">
         <div class="rec-rev-group-label">🔄 Você costuma levar</div>
         <div class="rec-grid" id="rec-rev-hist-grid"></div>
       </div>
@@ -455,7 +463,7 @@
       </svg>
       Enviar Pedido por WhatsApp
     </button>
-    <p style="text-align:center; color:var(--gray); font-size:0.75rem; margin-top:10px;">
+    <p class="wa-instrucao">
       Será aberto o WhatsApp com a mensagem já formatada para envio
     </p>
 
@@ -515,7 +523,7 @@
 
 <!-- CONFIRMATION MODAL — antes de enviar pelo WhatsApp -->
 <div class="modal-overlay" id="confirm-pedido-modal">
-  <div class="modal" style="max-width:480px">
+  <div class="modal modal-confirm-size">
     <div class="modal-header">
       <span>📋 Confirmar pedido</span>
       <button class="modal-close" onclick="fecharConfirmacao()">✕</button>
