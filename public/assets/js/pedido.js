@@ -55,9 +55,137 @@ let cupomDesconto  = 0;
 let cupomCodigo    = '';
 let cupomData      = null; // objeto {tipo, valor, produtos, precos}
 
+// Estado da indicação aplicada (campo unificado f_codigo aceita cupom OU indicação)
+let _indicacaoAplicada = false;
+let _indicacaoCodigo   = '';
+
+// ─── REFAZER ÚLTIMO PEDIDO ─────────────────────────────────────────────────
+// Mostra atalho no Step 1 pra cliente logado com histórico. Carrega itens
+// do último pedido e popula o carrinho com 1 clique.
+let _ultimoPedido = null;
+
+async function initRepeatLastOrder() {
+  try {
+    const sess = (typeof getClienteSession === 'function') ? getClienteSession() : null;
+    if (!sess?.token) return;
+    // Busca histórico de pedidos
+    const r = await fetch(`${SHEETS_URL}?action=cliente_pedidos&token=${encodeURIComponent(sess.token)}`);
+    const data = await r.json().catch(() => null);
+    const pedidos = Array.isArray(data?.pedidos) ? data.pedidos : (Array.isArray(data) ? data : []);
+    if (!pedidos.length) return;
+    // Pega o mais recente (assume ordenação desc — backend padrão)
+    const ultimo = pedidos[0];
+    if (!ultimo || !ultimo.itens) return;
+    _ultimoPedido = ultimo;
+    // Detecta URL repeat=last (vinda do hero do index)
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('repeat') === 'last') {
+      refazerUltimoPedido();
+      return;
+    }
+    // Mostra a barra
+    const bar = document.getElementById('repeat-order-bar');
+    const sub = document.getElementById('repeat-order-sub');
+    if (bar) bar.style.display = 'flex';
+    if (sub) {
+      const dt = ultimo.data || ultimo.created_at || '';
+      const total = ultimo.total ? `R$ ${parseFloat(ultimo.total).toLocaleString('pt-BR',{minimumFractionDigits:2})}` : '';
+      sub.textContent = [dt, total].filter(Boolean).join(' · ') || 'Adiciona os itens da última compra';
+    }
+  } catch(e) { /* sem histórico */ }
+}
+
+function refazerUltimoPedido() {
+  if (!_ultimoPedido || !_ultimoPedido.itens) {
+    alert('⚠️ Sem pedido anterior pra refazer.');
+    return;
+  }
+  // Itens no formato "2x BPC-157 (5mg) = R$ X" ou similar — backend pode retornar
+  // estrutura mais simples. Vamos tentar mapear via CATALOG.
+  let itensRaw = _ultimoPedido.itens;
+  if (typeof itensRaw === 'string') {
+    // Tenta parsear linhas "Nx Nome (variante)..."
+    itensRaw = itensRaw.split(/\n|;/).map(l => l.trim()).filter(Boolean);
+  }
+  let added = 0;
+  cart = {};
+  selectedVariants = {};
+  if (Array.isArray(itensRaw)) {
+    itensRaw.forEach(item => {
+      // Aceita objeto {id, qty, varIdx} ou string
+      if (typeof item === 'object' && item.id) {
+        const key = item.varIdx != null ? `${item.id}__${item.varIdx}` : item.id;
+        cart[key] = (cart[key] || 0) + (parseInt(item.qty) || 1);
+        added++;
+        return;
+      }
+      // Parse string: "2x Nome (Dose) = ..."
+      const m = String(item).match(/(\d+)x\s+(.+?)(?:\s*\((.+?)\))?\s*[=$]/);
+      if (!m) return;
+      const qty = parseInt(m[1]) || 1;
+      const nome = m[2].trim().toLowerCase();
+      const dose = (m[3] || '').trim().toLowerCase();
+      const p = CATALOG.find(x => x.name.toLowerCase() === nome);
+      if (!p) return;
+      let key = p.id;
+      if (p.variantes && dose) {
+        const idx = p.variantes.findIndex(v => v.dose.toLowerCase() === dose);
+        if (idx >= 0) key = `${p.id}__${idx}`;
+      }
+      cart[key] = (cart[key] || 0) + qty;
+      added++;
+    });
+  }
+  if (added === 0) {
+    alert('⚠️ Não foi possível recuperar os itens do último pedido. Confira o catálogo.');
+    return;
+  }
+  if (typeof renderProducts === 'function') renderProducts();
+  if (typeof updateTotal === 'function') updateTotal();
+  // Scroll suave pro carrinho
+  const cartEl = document.querySelector('.cart-sticky');
+  if (cartEl) cartEl.scrollIntoView({ behavior: 'smooth', block: 'end' });
+}
+
+// ─── PERSISTÊNCIA DO CARRINHO ──────────────────────────────────────────────
+// Salva carrinho em localStorage com TTL de 24h. Recupera no load se ainda
+// válido. Evita perder pedido se cliente fecha aba acidentalmente.
+const _CART_STORAGE_KEY = 'lp_cart_v1';
+const _CART_TTL_MS      = 24 * 60 * 60 * 1000; // 24h
+function saveCartToStorage() {
+  try {
+    if (Object.keys(cart).length === 0) {
+      localStorage.removeItem(_CART_STORAGE_KEY);
+      return;
+    }
+    localStorage.setItem(_CART_STORAGE_KEY, JSON.stringify({
+      cart, selectedVariants, ts: Date.now()
+    }));
+  } catch(e) { /* ignora — quota exceeded etc */ }
+}
+function loadCartFromStorage() {
+  try {
+    const raw = localStorage.getItem(_CART_STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (!data || (Date.now() - data.ts) > _CART_TTL_MS) {
+      localStorage.removeItem(_CART_STORAGE_KEY);
+      return;
+    }
+    if (data.cart && typeof data.cart === 'object') {
+      Object.keys(data.cart).forEach(k => { cart[k] = data.cart[k]; });
+    }
+    if (data.selectedVariants) selectedVariants = data.selectedVariants;
+  } catch(e) { /* ignora — JSON corrompido */ }
+}
+
 // ─── INIT ───────────────────────────────────────────────────────────────────
 window.onload = () => {
+  // Restaura carrinho ANTES de carregar produtos (CATALOG vai validar)
+  loadCartFromStorage();
   carregarProdutos();
+  // Tenta carregar atalho de "refazer último pedido" pra cliente logado
+  setTimeout(() => initRepeatLastOrder(), 800);
   // Restaura sessão de cliente do localStorage e pré-popula form
   try {
     const sess = (typeof getClienteSession === 'function') ? getClienteSession() : null;
@@ -295,13 +423,63 @@ function limparAcesso() {
   });
 }
 
-function aplicarCupom() {
-  const codigo = (document.getElementById('f_cupom').value || '').trim().toUpperCase();
-  const msg    = document.getElementById('cupom-msg');
+// ─── CÓDIGO UNIFICADO (cupom OU indicação) ─────────────────────────────────
+// Detecta o tipo pelo formato e despacha pra lógica certa.
+function _isCodigoIndicacao(codigo) {
+  // Formato: <slug>-<6 hex> (ex: joao-A4F7K2)
+  return /.+-[A-F0-9]{6}$/i.test(codigo);
+}
+
+async function aplicarCodigo() {
+  const input = document.getElementById('f_codigo');
+  const msg   = document.getElementById('codigo-msg');
+  if (!input) return;
+  const codigo = (input.value || '').trim().toUpperCase();
   if (!codigo) {
-    msg.innerHTML = `<div class="cupom-err">⚠️ Digite um código de bonificação.</div>`;
+    msg.innerHTML = `<div class="cupom-err">⚠️ Digite um cupom ou código de indicação.</div>`;
     return;
   }
+  if (_isCodigoIndicacao(codigo)) {
+    return _aplicarComoIndicacao(codigo);
+  }
+  return _aplicarComoCupom(codigo);
+}
+
+function removerCodigo() {
+  // Reseta tudo (cupom OU indicação)
+  cupomAplicado = false; cupomCodigo = ''; cupomDesconto = 0; cupomData = null;
+  _indicacaoAplicada = false; _indicacaoCodigo = '';
+  const input = document.getElementById('f_codigo');
+  const msg   = document.getElementById('codigo-msg');
+  const btnA  = document.getElementById('btn-codigo');
+  const btnR  = document.getElementById('btn-remover-codigo');
+  if (input) { input.value = ''; input.disabled = false; }
+  if (btnA)  { btnA.classList.remove('hidden'); btnA.disabled = false; }
+  if (btnR)  btnR.classList.add('hidden');
+  if (msg)   msg.innerHTML = '';
+  // Esconde benefícios visuais (parcela sem juros, frete grátis)
+  const badge    = document.getElementById('cupom-parc-badge');
+  const gratisEl = document.getElementById('frete-gratis');
+  if (badge) badge.style.display = 'none';
+  if (gratisEl) gratisEl.style.display = 'none';
+  if (selectedPayment === 'Cartão de Crédito') calcInstallment();
+  buildReview();
+}
+
+function aplicarCupom() {
+  // Wrapper retrocompatível — chama o handler unificado
+  const f = document.getElementById('f_codigo');
+  if (f) return aplicarCodigo();
+}
+function removerCupom() { return removerCodigo(); }
+function validarIndicacaoLegacy() {
+  const f = document.getElementById('f_codigo');
+  if (f) return aplicarCodigo();
+}
+function removerIndicacao() { return removerCodigo(); }
+
+function _aplicarComoCupom(codigo) {
+  const msg = document.getElementById('codigo-msg');
   const c = CUPONS_VALIDOS[codigo];
   if (c !== undefined) {
     cupomAplicado = true;
@@ -314,8 +492,8 @@ function aplicarCupom() {
       cupomData     = c;
       cupomDesconto = c.tipo === '%' ? c.valor / 100 : 0;
     }
-    document.getElementById('f_cupom').disabled   = true;
-    document.getElementById('btn-cupom').disabled = true;
+    document.getElementById('f_codigo').disabled   = true;
+    document.getElementById('btn-codigo').disabled = true;
     const descValor = calcularDescontoCupom();
     const descStr   = descValor > 0
       ? ` — <strong>R$ ${descValor.toLocaleString('pt-BR',{minimumFractionDigits:2})} de desconto</strong>`
@@ -335,7 +513,8 @@ function aplicarCupom() {
       msgTxt = `✅ Cupom <strong>${esc(codigo)}</strong> aplicado! Preço especial em ${n || Object.keys(precos).length} produto(s)${descStr}.`;
     }
     msg.innerHTML = `<div class="cupom-ok">${msgTxt}</div>`;
-    document.getElementById('btn-remover-cupom').classList.remove('hidden');
+    document.getElementById('btn-codigo').classList.add('hidden');
+    document.getElementById('btn-remover-codigo').classList.remove('hidden');
     checkCupomExtras();
     // Cupom afeta o total → valor por parcela muda
     if (selectedPayment === 'Cartão de Crédito') calcInstallment();
@@ -346,28 +525,6 @@ function aplicarCupom() {
     cupomData     = null;
     msg.innerHTML = `<div class="cupom-err">❌ Código inválido. Verifique e tente novamente.</div>`;
   }
-}
-
-function removerCupom() {
-  cupomAplicado = false;
-  cupomCodigo   = '';
-  cupomDesconto = 0;
-  cupomData     = null;
-  document.getElementById('f_cupom').disabled   = false;
-  document.getElementById('f_cupom').value      = '';
-  document.getElementById('btn-cupom').disabled = false;
-  document.getElementById('btn-remover-cupom').classList.add('hidden');
-  document.getElementById('cupom-msg').innerHTML = '';
-  // Esconde badges de benefícios
-  const badge    = document.getElementById('cupom-parc-badge');
-  const gratisEl = document.getElementById('frete-gratis');
-  if (badge) badge.style.display = 'none';
-  if (gratisEl) gratisEl.style.display = 'none';
-  // Recalcula frete (volta ao valor cheio se era grátis pelo cupom)
-  if (freteEstado && freteMetodo) selecionarFrete(freteMetodo);
-  // Recalcula parcela (sem desconto, valor sobe)
-  if (selectedPayment === 'Cartão de Crédito') calcInstallment();
-  buildReview();
 }
 
 function checkCupomExtras() {
@@ -1108,6 +1265,8 @@ function updateTotal() {
   document.getElementById('items-count').textContent = `${count} produto(s) · ${Object.keys(cart).length} tipo(s)`;
   if (cupomData?.frete_gratis_acima && freteEstado) selecionarFrete(freteMetodo || 'jadlog');
   if (selectedPayment === 'Cartão de Crédito') calcInstallment();
+  // Persiste carrinho a cada mudança
+  saveCartToStorage();
 }
 
 function getTotal() {
@@ -1217,6 +1376,10 @@ function selecionarFrete(metodo) {
 }
 
 // ─── PROTOCOLO MODAL ────────────────────────────────────────────────────────
+// ─── MODAL DE PROTOCOLO (unificado: tabs Resumo / Informativo) ─────────────
+let _protoInfoPagina = ''; // guarda url do informativo do produto atual (lazy)
+let _protoInfoCarregado = false;
+
 function abrirProtocolo(id) {
   const p = CATALOG.find(x => x.id === id);
   const proto = PROTOCOLS[id];
@@ -1243,38 +1406,54 @@ function abrirProtocolo(id) {
       <div class="proto-section-body">${esc(String(s.campo)).replace(/\n/g,'<br>')}</div>
     </div>`).join('');
 
-  // Informativo
-  const footer = document.getElementById('pm-info-footer');
-  const aviso  = document.getElementById('pm-aviso');
+  // Tab "Informativo completo": só aparece se o produto tem página
+  const tabInfo = document.getElementById('pm-tab-info');
+  const aviso   = document.getElementById('pm-aviso');
+  _protoInfoCarregado = false;
+  document.getElementById('pm-info-iframe').src = '';
   if (proto.pagina) {
-    aviso.style.display   = 'flex';
-    footer.style.display  = 'block';
-    footer.dataset.pagina = proto.pagina;
-    footer.dataset.titulo = p.name;
+    let pagina = proto.pagina;
+    if (!pagina.startsWith('http') && !pagina.includes('/')) {
+      pagina = 'informativos/' + pagina;
+    }
+    _protoInfoPagina = pagina;
+    if (tabInfo) tabInfo.style.display = '';
+    if (aviso)   aviso.style.display   = 'flex';
   } else {
-    aviso.style.display  = 'none';
-    footer.style.display = 'none';
+    _protoInfoPagina = '';
+    if (tabInfo) tabInfo.style.display = 'none';
+    if (aviso)   aviso.style.display   = 'none';
   }
 
+  // Reset pra tab Resumo sempre que abrir
+  trocarTabProto('resumo');
   document.getElementById('protocol-modal').classList.add('open');
 }
 
-function abrirInformativo() {
-  const footer = document.getElementById('pm-info-footer');
-  let pagina = footer.dataset.pagina;
-  if (pagina && !pagina.startsWith('http') && !pagina.includes('/'))
-    pagina = 'informativos/' + pagina;
-  document.getElementById('info-iframe').src = pagina;
-  document.getElementById('info-overlay-title').textContent = footer.dataset.titulo || 'Informativo do produto';
-  document.getElementById('info-overlay').classList.add('open');
-  document.body.style.overflow = 'hidden';
+function fecharProtocolo() {
+  document.getElementById('protocol-modal').classList.remove('open');
+  // Limpa iframe pra liberar memória + parar áudio/vídeo se houver
+  document.getElementById('pm-info-iframe').src = '';
+  _protoInfoCarregado = false;
 }
 
-function fecharInformativo() {
-  document.getElementById('info-overlay').classList.remove('open');
-  document.getElementById('info-iframe').src = '';
-  document.body.style.overflow = '';
+function trocarTabProto(tab) {
+  document.querySelectorAll('.pm-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+  document.querySelectorAll('.pm-tab-pane').forEach(p => {
+    p.classList.toggle('active', p.id === 'pm-pane-' + tab);
+  });
+  // Lazy load do iframe na primeira vez que abre a tab Informativo
+  if (tab === 'info' && _protoInfoPagina && !_protoInfoCarregado) {
+    document.getElementById('pm-info-iframe').src = _protoInfoPagina;
+    _protoInfoCarregado = true;
+  }
 }
+
+// Wrappers retrocompatíveis (caso algo externo ainda chame)
+function abrirInformativo() { trocarTabProto('info'); }
+function fecharInformativo() { fecharProtocolo(); }
 
 function getFreteLabel() {
   if (!freteCep) return 'Não calculado';
@@ -1467,22 +1646,84 @@ function validateStep1() {
   return ok;
 }
 
+// Marca um campo com erro + mensagem inline. Mensagem some assim que usuário digitar.
+function _markFieldError(el, msg) {
+  if (!el) return;
+  el.classList.add('error');
+  let hint = el.parentElement?.querySelector('.field-error');
+  if (!hint) {
+    hint = document.createElement('div');
+    hint.className = 'field-error';
+    el.parentElement?.appendChild(hint);
+  }
+  hint.textContent = msg || 'Campo obrigatório';
+  if (!el._errorListenerAttached) {
+    el.addEventListener('input', () => {
+      el.classList.remove('error');
+      const h = el.parentElement?.querySelector('.field-error');
+      if (h) h.remove();
+    }, { once: true });
+    el._errorListenerAttached = true;
+  }
+}
+
+function _clearFieldError(el) {
+  if (!el) return;
+  el.classList.remove('error');
+  const h = el.parentElement?.querySelector('.field-error');
+  if (h) h.remove();
+}
+
 function validateStep2() {
-  const base    = ['f_clinica','f_responsavel','f_telefone','f_email'];
+  const FIELD_LABELS = {
+    f_clinica: 'Nome',
+    f_responsavel: 'Apelido',
+    f_telefone: 'Telefone / WhatsApp',
+    f_email: 'E-mail',
+    f_rua: 'Rua / Logradouro',
+    f_numero: 'Número',
+    f_bairro: 'Bairro',
+  };
+  const base = ['f_clinica','f_responsavel','f_telefone','f_email'];
   const enderecoFields = ['f_rua','f_numero','f_bairro'];
-  // Clientes já cadastrados não são obrigados a preencher os novos campos de endereço
   const required = _clienteJaLogado ? base : [...base, ...enderecoFields];
   let ok = true;
+  let firstError = null;
   required.forEach(id => {
     const el = document.getElementById(id);
-    if (!el || !el.value.trim()) { if (el) el.classList.add('error'); ok = false; }
-    else el.classList.remove('error');
+    if (!el) return;
+    const val = el.value.trim();
+    if (!val) {
+      _markFieldError(el, `Preencha "${FIELD_LABELS[id] || id}"`);
+      if (!firstError) firstError = el;
+      ok = false;
+      return;
+    }
+    // Validações específicas
+    if (id === 'f_email' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(val)) {
+      _markFieldError(el, 'E-mail inválido');
+      if (!firstError) firstError = el;
+      ok = false;
+      return;
+    }
+    if (id === 'f_telefone' && val.replace(/\D/g,'').length < 10) {
+      _markFieldError(el, 'Telefone incompleto');
+      if (!firstError) firstError = el;
+      ok = false;
+      return;
+    }
+    _clearFieldError(el);
   });
   if (_clienteJaLogado) {
-    enderecoFields.forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('error'); });
+    enderecoFields.forEach(id => _clearFieldError(document.getElementById(id)));
   }
   const alert = document.getElementById('alert2');
-  ok ? alert.classList.remove('show') : alert.classList.add('show');
+  if (ok) {
+    alert.classList.remove('show');
+  } else {
+    alert.classList.add('show');
+    if (firstError) firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
   return ok;
 }
 
@@ -1658,6 +1899,40 @@ function v(id) { return document.getElementById(id)?.value?.trim() || ''; }
 
 // ─── WHATSAPP ────────────────────────────────────────────────────────────────
 let _sendingPedido = false;
+// ─── CONFIRMATION MODAL ANTES DE ENVIAR ────────────────────────────────────
+function confirmarEnviarPedido() {
+  // Validações antes de mostrar confirm
+  if (Object.keys(cart).length === 0) {
+    alert('⚠️ Carrinho vazio.');
+    return;
+  }
+  if (!selectedPayment) {
+    alert('⚠️ Selecione uma forma de pagamento.');
+    return;
+  }
+  // Monta resumo compacto
+  const totalItens = Object.values(cart).reduce((s, q) => s + q, 0);
+  const total = (typeof getFinalTotal === 'function') ? getFinalTotal() : 0;
+  const desc = cupomAplicado ? calcularDescontoCupom() : 0;
+  const fmt = (v) => 'R$ ' + (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+
+  const sumEl = document.getElementById('confirm-summary');
+  if (sumEl) {
+    sumEl.innerHTML = `
+      <div class="cs-row"><span>Itens</span><strong>${totalItens} produto(s)</strong></div>
+      <div class="cs-row"><span>Pagamento</span><strong>${esc(selectedPayment)}</strong></div>
+      ${desc > 0 ? `<div class="cs-row cs-disc"><span>Desconto cupom</span><strong>−${fmt(desc)}</strong></div>` : ''}
+      ${_indicacaoAplicada ? `<div class="cs-row cs-disc"><span>Código de indicação</span><strong>${esc(_indicacaoCodigo)}</strong></div>` : ''}
+      <div class="cs-row cs-total"><span>Total</span><strong>${fmt(total)}</strong></div>
+    `;
+  }
+  document.getElementById('confirm-pedido-modal').classList.add('open');
+}
+
+function fecharConfirmacao() {
+  document.getElementById('confirm-pedido-modal').classList.remove('open');
+}
+
 async function sendWhatsApp() {
   // Trava contra múltiplos cliques: enquanto o request está em voo,
   // ignora cliques adicionais. Reativa só após sucesso/erro.
@@ -1781,7 +2056,7 @@ async function _sendWhatsAppCore(btnWA, _btnHtmlOrig) {
     cupom_codigo:  cupomCodigo || '',
     cupom_pct:     cupomAplicado && cupomData?.tipo === '%' ? (cupomData.valor).toFixed(0) : '0',
     cupom_valor:   cupomAplicado ? calcularDescontoCupom().toFixed(2) : '0',
-    indicado_por:  (document.getElementById('f_indicacao')?.value || '').trim(),
+    indicado_por:  _indicacaoAplicada ? _indicacaoCodigo : '',
     saldo_indicacao_usar: (document.getElementById('usar_saldo_indicacao_chk')?.checked
                             ? String(_saldoIndicacaoUsavel || 0) : '0'),
     carrinho:      JSON.stringify(cart),
@@ -1794,7 +2069,7 @@ async function _sendWhatsAppCore(btnWA, _btnHtmlOrig) {
     .then(r => r.json().catch(() => null))
     .then(data => {
       if (!data || data.ok === false) console.warn('Pedido pode não ter sido salvo:', data);
-      else if (data.indicacao && !data.indicacao.aplicada && document.getElementById('f_indicacao')?.value) {
+      else if (data.indicacao && !data.indicacao.aplicada && _indicacaoAplicada) {
         // Loga motivo da rejeição da indicação pra debug
         console.warn('Indicação rejeitada pelo backend:', data.indicacao.motivo_rejeicao || 'motivo desconhecido');
       }
@@ -1852,6 +2127,8 @@ function showSuccess() {
   document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('success-screen').classList.add('show');
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  // Pedido enviado — limpa carrinho persistido
+  try { localStorage.removeItem(_CART_STORAGE_KEY); } catch(e) {}
 }
 
 function newOrder() {
@@ -2116,25 +2393,19 @@ const INDICACAO_MOTIVOS = {
   erro_interno:            '⚠️ Erro ao validar. Tente novamente.',
 };
 
-async function validarIndicacao() {
-  const input  = document.getElementById('f_indicacao');
-  const msg    = document.getElementById('indicacao-msg');
-  const btnApl = document.getElementById('btn-indicacao');
-  const btnRem = document.getElementById('btn-remover-indicacao');
-  if (!input) return;
-  const codigo = (input.value || '').trim().toUpperCase();
-  if (!codigo) {
-    if (msg) { msg.textContent = '⚠️ Digite ou cole um código.'; msg.style.color = '#FCA5A5'; }
-    return;
-  }
-  // Pre-check de formato (rápido, sem rede)
+async function _aplicarComoIndicacao(codigo) {
+  const input = document.getElementById('f_codigo');
+  const msg   = document.getElementById('codigo-msg');
+  const btnA  = document.getElementById('btn-codigo');
+  const btnR  = document.getElementById('btn-remover-codigo');
+  // Pre-check de formato (defesa redundante — _isCodigoIndicacao já checou)
   if (!codigo.match(/([A-F0-9]{6})$/)) {
-    if (msg) { msg.textContent = INDICACAO_MOTIVOS.formato_invalido; msg.style.color = '#FCA5A5'; }
+    msg.innerHTML = `<div class="cupom-err">${INDICACAO_MOTIVOS.formato_invalido}</div>`;
     return;
   }
   // Estado loading
-  if (msg) { msg.textContent = '⏳ Validando código…'; msg.style.color = '#9CA3AF'; }
-  if (btnApl) btnApl.disabled = true;
+  msg.innerHTML = `<div class="cupom-loading">⏳ Validando código…</div>`;
+  if (btnA) btnA.disabled = true;
   // Coleta dados do comprador (do form OU sessão)
   const sess = (typeof getClienteSession === 'function') ? getClienteSession() : null;
   const params = new URLSearchParams({
@@ -2150,35 +2421,28 @@ async function validarIndicacao() {
     const data = await r.json().catch(() => null);
     if (data && data.ok) {
       // Aplica + trava
+      _indicacaoAplicada = true;
+      _indicacaoCodigo   = codigo;
       input.disabled = true;
-      if (btnApl) { btnApl.disabled = false; btnApl.classList.add('hidden'); }
-      if (btnRem) btnRem.classList.remove('hidden');
-      if (msg) { msg.innerHTML = `✅ Código <strong>${codigo}</strong> aplicado!`; msg.style.color = '#22C55E'; }
+      if (btnA) { btnA.disabled = false; btnA.classList.add('hidden'); }
+      if (btnR) btnR.classList.remove('hidden');
+      msg.innerHTML = `<div class="cupom-ok">✅ Código <strong>${esc(codigo)}</strong> aplicado!</div>`;
     } else {
-      // Mostra motivo específico
       const motivo = data?.motivo || 'erro_interno';
       const text = INDICACAO_MOTIVOS[motivo] || `❌ Código não pôde ser aplicado (${motivo}).`;
-      if (msg) { msg.textContent = text; msg.style.color = '#FCA5A5'; }
-      if (btnApl) btnApl.disabled = false;
+      msg.innerHTML = `<div class="cupom-err">${text}</div>`;
+      if (btnA) btnA.disabled = false;
     }
   } catch (e) {
-    if (msg) { msg.textContent = '⚠️ Erro de conexão. Tente novamente.'; msg.style.color = '#FCA5A5'; }
-    if (btnApl) btnApl.disabled = false;
+    msg.innerHTML = `<div class="cupom-err">⚠️ Erro de conexão. Tente novamente.</div>`;
+    if (btnA) btnA.disabled = false;
   }
 }
 
-function removerIndicacao() {
-  const input = document.getElementById('f_indicacao');
-  const msg   = document.getElementById('indicacao-msg');
-  const btnApl = document.getElementById('btn-indicacao');
-  const btnRem = document.getElementById('btn-remover-indicacao');
-  if (input) { input.value = ''; input.disabled = false; }
-  if (btnApl) btnApl.classList.remove('hidden');
-  if (btnRem) btnRem.classList.add('hidden');
-  if (msg) {
-    msg.textContent = 'Foi indicado por alguém? Cole o código aqui pra que ele/ela ganhe comissão.';
-    msg.style.color = '';
-  }
+// (legado) — wrappers retrocompatíveis pra qualquer código externo
+async function validarIndicacao() {
+  const f = document.getElementById('f_codigo');
+  if (f) return aplicarCodigo();
 }
 
 // ─── SALDO DE INDICAÇÃO (uso direto no checkout) ────────────────────────────

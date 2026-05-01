@@ -56,7 +56,7 @@
     <div class="step-line" id="line3"></div>
     <div class="step" id="s4">
       <div class="step-circle">4</div>
-      <div class="step-label">Revisar<br>& Enviar</div>
+      <div class="step-label">Revisar</div>
     </div>
   </div>
 </div>
@@ -73,6 +73,18 @@
         oninput="onSearchInput(this.value)"
         autocomplete="off"/>
       <button class="search-clear-btn" id="search-clear-btn" onclick="clearSearch()" style="display:none">✕</button>
+    </div>
+
+    <!-- ATALHO: Refazer último pedido (cliente logado com histórico) -->
+    <div class="repeat-order-bar" id="repeat-order-bar" style="display:none">
+      <div class="repeat-order-info">
+        <span class="repeat-order-icon">🔄</span>
+        <div>
+          <div class="repeat-order-title">Refazer último pedido</div>
+          <div class="repeat-order-sub" id="repeat-order-sub">—</div>
+        </div>
+      </div>
+      <button class="repeat-order-btn" onclick="refazerUltimoPedido()">Refazer →</button>
     </div>
 
     <!-- SKELETON LOADING (mostrado enquanto CATALOG carrega) -->
@@ -188,9 +200,6 @@
 
   <!-- STEP 2 — DADOS DA CLÍNICA -->
   <div class="step-panel" id="panel2">
-    <div class="panel-title">📋 Dados do Cliente</div>
-    <div class="panel-subtitle">Preencha os dados do responsável pelo pedido</div>
-
     <!-- ── LOGIN PANEL ── -->
     <div id="lp-logado-bar" class="lp-logado-bar" style="display:none">
       <div class="lp-logado-info">✅ Logado como <span id="lp-nome-bar"></span></div>
@@ -278,7 +287,7 @@
     </div>
     </div><!-- /lp-form-wrap -->
 
-    <div class="btn-row">
+    <div class="step-actions-sticky">
       <button class="btn btn-back" onclick="goStep(1)">← Voltar</button>
       <button class="btn btn-next" onclick="_goStep3()">Continuar para Pagamento →</button>
     </div>
@@ -286,9 +295,6 @@
 
   <!-- STEP 3 — PAGAMENTO -->
   <div class="step-panel" id="panel3">
-    <div class="panel-title">💳 Forma de Pagamento</div>
-    <div class="panel-subtitle">Escolha como deseja pagar</div>
-
     <div id="alert3" class="alert">⚠️ Selecione uma forma de pagamento.</div>
 
     <div class="payment-options">
@@ -371,17 +377,14 @@
       <textarea id="f_obs_pag" placeholder="Alguma informação adicional sobre o pagamento?"></textarea>
     </div>
 
-    <div class="btn-row">
+    <div class="step-actions-sticky">
       <button class="btn btn-back" onclick="goStep(2)">← Voltar</button>
-      <button class="btn btn-next" onclick="goStep(4)">Próximo — Revisar Pedido →</button>
+      <button class="btn btn-next" onclick="goStep(4)">Revisar Pedido →</button>
     </div>
   </div>
 
   <!-- STEP 4 — REVISÃO -->
   <div class="step-panel" id="panel4">
-    <div class="panel-title">✅ Revisar e Enviar</div>
-    <div class="panel-subtitle">Confira todos os dados antes de enviar pelo WhatsApp</div>
-
     <div class="review-card">
       <div class="rc-header">📋 Dados do Cliente</div>
       <div class="rc-body" id="review-dados"></div>
@@ -401,32 +404,18 @@
 
     <div class="review-total-box" id="review-total-box"></div>
 
-    <!-- Cupom de Bonificação -->
+    <!-- Código (cupom de desconto OU código de indicação) -->
     <div class="cupom-section">
-      <div class="cupom-header">🎟️ Código de Bonificação</div>
+      <div class="cupom-header">🎁 Tem um código?</div>
       <div class="cupom-row">
-        <input type="text" id="f_cupom" placeholder="EX: BONUS10"
+        <input type="text" id="f_codigo" placeholder="Cupom ou código de indicação"
                oninput="this.value=this.value.toUpperCase()"
-               onkeydown="if(event.key==='Enter') aplicarCupom()"/>
-        <button id="btn-cupom" onclick="aplicarCupom()">Aplicar</button>
-        <button id="btn-remover-cupom" class="hidden" onclick="removerCupom()">✕ Remover</button>
+               onkeydown="if(event.key==='Enter') aplicarCodigo()"/>
+        <button id="btn-codigo" onclick="aplicarCodigo()">Aplicar</button>
+        <button id="btn-remover-codigo" class="hidden" onclick="removerCodigo()">✕ Remover</button>
       </div>
-      <div id="cupom-msg"></div>
-    </div>
-
-    <!-- Código de Indicação -->
-    <div class="cupom-section" style="margin-top:14px">
-      <div class="cupom-header">🎁 Código de Indicação <span style="opacity:.6;font-weight:400;text-transform:none;letter-spacing:0">(opcional)</span></div>
-      <div class="cupom-row">
-        <input type="text" id="f_indicacao" placeholder="EX: joao-A4F7K2"
-               oninput="this.value=this.value.toUpperCase()"
-               onkeydown="if(event.key==='Enter') validarIndicacao()"/>
-        <button id="btn-indicacao" onclick="validarIndicacao()">Validar</button>
-        <button id="btn-remover-indicacao" class="hidden" onclick="removerIndicacao()">✕ Remover</button>
-      </div>
-      <div id="indicacao-msg" style="font-size:.75rem;color:var(--gray);margin-top:6px">
-        Foi indicado por alguém? Cole o código aqui pra que ele/ela ganhe comissão.
-      </div>
+      <div id="codigo-msg"></div>
+      <div class="cupom-hint">Aceita cupom de desconto (ex: <code>BONUS10</code>) ou código de indicação (ex: <code>joao-3F9ABC</code>).</div>
     </div>
 
     <!-- Saldo de indicação (só aparece se cliente logado tem saldo) -->
@@ -460,7 +449,7 @@
       </div>
     </div>
 
-    <button class="btn-wa" onclick="sendWhatsApp()">
+    <button class="btn-wa" onclick="confirmarEnviarPedido()">
       <svg viewBox="0 0 24 24" fill="currentColor">
         <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
       </svg>
@@ -486,43 +475,61 @@
 </main>
 
 
-<!-- PROTOCOL MODAL -->
+<!-- PROTOCOL MODAL — unificado: 1 modal com tabs (Resumo / Informativo Completo) -->
 <div class="modal-overlay" id="protocol-modal">
-  <div class="modal" style="max-width:620px">
+  <div class="modal proto-modal-flex">
     <div class="modal-header">
-      <div style="display:flex;align-items:center;gap:10px">
-        <span id="pm-icon" style="font-size:1.6rem"></span>
+      <div class="pm-header-info">
+        <span id="pm-icon" class="pm-header-icon"></span>
         <div>
-          <h2 id="pm-name" style="font-size:1rem;margin:0"></h2>
-          <div id="pm-conc" style="font-size:.75rem;color:var(--gray)"></div>
+          <h2 id="pm-name" class="pm-header-name"></h2>
+          <div id="pm-conc" class="pm-header-conc"></div>
         </div>
       </div>
-      <button class="modal-close" onclick="document.getElementById('protocol-modal').classList.remove('open')">✕</button>
+      <button class="modal-close" onclick="fecharProtocolo()">✕</button>
     </div>
-    <div class="proto-modal-body" id="pm-body">
-      <div class="proto-loading">⏳ Carregando protocolo...</div>
+
+    <!-- Tabs (Informativo aparece só se o produto tiver) -->
+    <div class="pm-tabs" id="pm-tabs">
+      <button class="pm-tab active" data-tab="resumo" onclick="trocarTabProto('resumo')">📋 Resumo</button>
+      <button class="pm-tab" id="pm-tab-info" data-tab="info" onclick="trocarTabProto('info')" style="display:none">📖 Informativo completo</button>
     </div>
-    <div class="pm-aviso" id="pm-aviso" style="display:none">
-      <span class="pm-aviso-icon">⚠️</span>
-      <span>Estas são <strong>informações gerais</strong> do produto. Para protocolos específicos, advertências detalhadas, dosagens individualizadas e orientações de reconstituição, acesse o informativo completo abaixo.</span>
+
+    <!-- Pane: Resumo -->
+    <div class="pm-tab-pane active" id="pm-pane-resumo">
+      <div class="proto-modal-body" id="pm-body">
+        <div class="proto-loading">⏳ Carregando protocolo...</div>
+      </div>
+      <div class="pm-aviso" id="pm-aviso" style="display:none">
+        <span class="pm-aviso-icon">⚠️</span>
+        <span>Estas são <strong>informações gerais</strong>. Pra protocolos específicos, dosagens individualizadas e reconstituição, abra <strong>Informativo completo</strong> acima.</span>
+      </div>
     </div>
-    <div class="pm-info-footer" id="pm-info-footer" style="display:none">
-      <button class="btn-ver-informativo" onclick="abrirInformativo()">
-        📋 Acessar informativo completo do produto
-      </button>
+
+    <!-- Pane: Informativo (iframe lazy) -->
+    <div class="pm-tab-pane" id="pm-pane-info">
+      <iframe id="pm-info-iframe" src="" allowfullscreen></iframe>
     </div>
   </div>
 </div>
 
-<!-- INFORMATIVO FULLSCREEN OVERLAY -->
-<div class="info-overlay" id="info-overlay">
-  <div class="info-overlay-inner">
-    <div class="info-overlay-bar">
-      <span id="info-overlay-title">Informativo do produto</span>
-      <button class="btn-fechar-info" onclick="fecharInformativo()">✕ Fechar informativo</button>
+<!-- CONFIRMATION MODAL — antes de enviar pelo WhatsApp -->
+<div class="modal-overlay" id="confirm-pedido-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <span>📋 Confirmar pedido</span>
+      <button class="modal-close" onclick="fecharConfirmacao()">✕</button>
     </div>
-    <div class="info-iframe-wrap">
-      <iframe id="info-iframe" src="" allowfullscreen></iframe>
+    <div class="confirm-body">
+      <p class="confirm-text">Você está prestes a enviar seu pedido pelo WhatsApp.</p>
+      <div class="confirm-summary" id="confirm-summary"></div>
+      <div class="confirm-info">
+        Confira tudo. Após enviar, o WhatsApp abre com a mensagem pronta — você só confirma o envio.
+      </div>
+    </div>
+    <div class="confirm-actions">
+      <button class="btn btn-back" onclick="fecharConfirmacao()">← Revisar</button>
+      <button class="btn btn-next" onclick="sendWhatsApp(); fecharConfirmacao()">✓ Confirmar e enviar</button>
     </div>
   </div>
 </div>
