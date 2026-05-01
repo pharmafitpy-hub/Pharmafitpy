@@ -615,6 +615,11 @@ function removerCodigo() {
   const gratisEl = document.getElementById('frete-gratis');
   if (badge) badge.style.display = 'none';
   if (gratisEl) gratisEl.style.display = 'none';
+  // CRÍTICO: re-aplica o frete selecionado pra restaurar o valor cheio
+  // (cupom de frete grátis tinha zerado freteValor)
+  if (freteEstado && freteMetodo) {
+    selecionarFrete(freteMetodo);
+  }
   if (selectedPayment === 'Cartão de Crédito') calcInstallment();
   buildReview();
 }
@@ -1484,6 +1489,8 @@ async function calcFrete() {
 
     freteEstado = uf;
     metodos.style.display = 'grid';
+    const aviso = document.getElementById('frete-aviso');
+    if (aviso) aviso.style.display = 'block';
 
     document.getElementById('fp-sedex').textContent  = `R$ ${tabela.sedex.toFixed(2).replace('.',',')}`;
     document.getElementById('fd-sedex').textContent  = `${tabela.ds} dias úteis`;
@@ -1629,9 +1636,12 @@ function calcInstallment() {
   let juros = config ? config.juros : 0;
   if (cupomData?.parcelamento === 'SIM' && parcelas <= 3) juros = 0;
   const desconto = cupomAplicado ? calcularDescontoCupom() : 0;
-  let total = getTotal() + freteValor - desconto;
-  if (total < 0) total = 0;
-  if (juros > 0) total *= (1 + juros / 100);
+  // Juros incidem APENAS sobre subtotal de produtos (sem frete)
+  let subtotal = getTotal() - desconto;
+  if (subtotal < 0) subtotal = 0;
+  if (juros > 0) subtotal *= (1 + juros / 100);
+  // Frete soma depois — não tem juros
+  const total = subtotal + freteValor;
   const por = total / parcelas;
   document.getElementById('f_parcela_val').value = `R$ ${por.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
 }
@@ -2240,20 +2250,23 @@ async function _sendWhatsAppCore(btnWA, _btnHtmlOrig) {
 // Total ANTES do desconto de saldo de indicação (usado pra calcular quanto
 // do saldo pode ser usado, evitando recursão).
 function getBaseTotal() {
-  let total = getTotal() + freteValor;
+  // Calcula subtotal de produtos com desconto aplicado
+  let subtotal = getTotal();
+  if (cupomAplicado) {
+    const desc = calcularDescontoCupom();
+    subtotal -= desc;
+    if (subtotal < 0) subtotal = 0;
+  }
+  // Juros do cartão incidem APENAS sobre produtos (sem frete)
   if (selectedPayment === 'Cartão de Crédito') {
     const parc   = parseInt(document.getElementById('f_parcelas').value);
     const config = PARCELAS_CONFIG.find(p => p.parcelas === parc);
     let juros  = config ? config.juros : 0;
     if (cupomData?.parcelamento === 'SIM' && parc <= 3) juros = 0;
-    if (juros > 0) total *= (1 + juros / 100);
+    if (juros > 0) subtotal *= (1 + juros / 100);
   }
-  if (cupomAplicado) {
-    const desc = calcularDescontoCupom();
-    total -= desc;
-    if (total < 0) total = 0;
-  }
-  return total;
+  // Frete entra fora do cálculo de juros
+  return subtotal + freteValor;
 }
 
 function getFinalTotal() {

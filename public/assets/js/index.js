@@ -70,6 +70,11 @@ async function carregarProdutosLanding() {
   } catch(e) { return null; }
 }
 
+// Paginação landing: mostra primeiros N produtos, botão "Ver mais"
+const _LANDING_PROD_LIMIT = 12;
+let _landingProdutosCache = null;
+let _landingProdutosShown = _LANDING_PROD_LIMIT;
+
 async function renderProdutosLanding() {
   const grid = document.getElementById('prod-grid');
   const [produtos, protocolos] = await Promise.all([
@@ -80,7 +85,20 @@ async function renderProdutosLanding() {
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#4A6278">⚠️ Erro ao carregar produtos.</div>';
     return;
   }
-  grid.innerHTML = produtos.map((p, i) => {
+  _landingProdutosCache = produtos;
+  _landingProdutosShown = _LANDING_PROD_LIMIT;
+  _renderLandingProdutosBatch();
+}
+
+function _renderLandingProdutosBatch() {
+  const grid = document.getElementById('prod-grid');
+  const produtos = _landingProdutosCache || [];
+  const protocolos = protocolosCache || {};
+  const showCount = Math.min(_landingProdutosShown, produtos.length);
+  const visiveis = produtos.slice(0, showCount);
+  const restantes = produtos.length - showCount;
+
+  grid.innerHTML = visiveis.map((p, i) => {
     const cor = CORES[i % CORES.length];
     const tags = (Array.isArray(p.tags) ? p.tags : []).slice(0,3);
     const temProto = protocolos && protocolos[p.id];
@@ -106,6 +124,29 @@ async function renderProdutosLanding() {
         </div>
       </div>`;
   }).join('');
+
+  // Botão "Ver mais" se ainda há produtos não exibidos
+  if (restantes > 0) {
+    const moreBtn = document.createElement('div');
+    moreBtn.className = 'prod-more-wrap';
+    moreBtn.innerHTML = `
+      <button class="prod-more-btn" onclick="verMaisProdutos()">
+        Ver mais ${restantes} produto${restantes !== 1 ? 's' : ''} ↓
+      </button>`;
+    grid.parentNode.insertBefore(moreBtn, grid.nextSibling);
+  } else {
+    // Remove botão se já mostrou tudo
+    const old = document.querySelector('.prod-more-wrap');
+    if (old) old.remove();
+  }
+}
+
+function verMaisProdutos() {
+  _landingProdutosShown += _LANDING_PROD_LIMIT;
+  // Remove botão antigo antes de re-renderizar
+  const old = document.querySelector('.prod-more-wrap');
+  if (old) old.remove();
+  _renderLandingProdutosBatch();
 }
 
 async function carregarProtocolos() {

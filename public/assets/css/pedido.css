@@ -1057,6 +1057,16 @@
     display: none;
   }
   .frete-gratis.show { display: block; }
+  .frete-aviso {
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: rgba(124,58,237,.06);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    font-size: .72rem;
+    color: var(--gray);
+    line-height: 1.45;
+  }
 
   /* ── REVIEW ── */
   .review-card {

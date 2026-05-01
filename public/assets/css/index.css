@@ -269,6 +269,70 @@
     .quem-card .qc-title { font-family:'Montserrat',sans-serif; font-size:12pt; font-weight:800; color:var(--petrol-dark); margin-bottom:10px; }
     .quem-card .qc-text { font-size:9.5pt; color:var(--text-mid); line-height:1.65; }
 
+    /* Botão "Ver mais produtos" — paginação na landing */
+    .prod-more-wrap {
+      text-align: center;
+      margin-top: 28px;
+    }
+    .prod-more-btn {
+      background: transparent;
+      border: 2px solid var(--secondary);
+      color: var(--secondary);
+      padding: 13px 32px;
+      border-radius: 50px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: .9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .prod-more-btn:hover {
+      background: var(--secondary);
+      color: var(--white);
+      transform: translateY(-1px);
+    }
+
+    /* CTA card no fim da seção produtos (fundo branco, texto escuro) */
+    .prod-cta-card {
+      margin-top: 48px;
+      padding: 32px 28px;
+      background: linear-gradient(135deg, rgba(124,58,237,0.08), rgba(245,158,11,0.06));
+      border: 1px solid rgba(124,58,237,0.25);
+      border-radius: 18px;
+      text-align: center;
+    }
+    .prod-cta-icon { font-size: 1.6rem; margin-bottom: 10px; }
+    .prod-cta-title {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--text-dark);
+      margin-bottom: 8px;
+    }
+    .prod-cta-text {
+      font-size: .9rem;
+      color: var(--text-mid);
+      margin: 0 auto 20px;
+      max-width: 480px;
+      line-height: 1.55;
+    }
+    .prod-cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-d));
+      color: var(--dark-1);
+      font-family: 'Montserrat', sans-serif;
+      font-size: .95rem;
+      font-weight: 800;
+      padding: 14px 30px;
+      border-radius: 50px;
+      text-decoration: none;
+      box-shadow: 0 6px 24px rgba(245,158,11,0.4);
+      transition: transform .15s, box-shadow .2s;
+    }
+    .prod-cta-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(245,158,11,0.55); }
+
     /* ─── PRODUTOS ────────────────────────────────────── */
     .produtos-bg { background: white; }
     .prod-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:20px; margin-top:50px; }
