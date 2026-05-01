@@ -48,8 +48,9 @@
 
 <!-- ═══ HERO ═══ -->
 <section class="hero">
-  <div class="hero-inner">
-    <div class="hero-left">
+  <!-- HERO PADRÃO (visitante) -->
+  <div class="hero-inner hero-default" id="hero-default">
+    <div class="hero-left hero-centered">
       <div class="hero-badge"><span class="dot"></span> Catálogo B2B</div>
       <h1 class="hero-title">
         Tudo que você precisa<br/><span class="highlight">em um só lugar</span>
@@ -60,24 +61,38 @@
       </p>
       <div class="hero-btns">
         <a href="pedido.html" class="btn-pedido">
-          🛒 Fazer Pedido Agora
+          🛒 Fazer Pedido
         </a>
-        <a href="catalogo_interno.html" class="btn-wa">
-          📋 Acessar Catálogo
+        <a href="catalogo_interno.html" class="btn-outline">
+          📋 Ver Catálogo
         </a>
-        <a href="#produtos" class="btn-outline">Ver Produtos ↓</a>
-      </div>
-      <div class="hero-stats">
-        <div class="stat-box"><div class="s-num">+</div><div class="s-label">Catálogo completo</div></div>
-        <div class="stat-box"><div class="s-num">3</div><div class="s-label">Passos para pedir</div></div>
-        <div class="stat-box"><div class="s-num">100%</div><div class="s-label">Atendimento direto</div></div>
       </div>
     </div>
-    <div class="hero-cards">
-      <div class="h-card"><div class="hc-icon">📦</div><div class="hc-name">Catálogo Atualizado</div><div class="hc-desc">Produtos, preços e disponibilidade sempre em dia</div><span class="hc-tag">Online</span></div>
-      <div class="h-card"><div class="hc-icon">⚡</div><div class="hc-name">Pedido Rápido</div><div class="hc-desc">Selecione, preencha e finalize em poucos cliques</div><span class="hc-tag">3 passos</span></div>
-      <div class="h-card"><div class="hc-icon">💬</div><div class="hc-name">Atendimento Direto</div><div class="hc-desc">Fale com a gente pelo WhatsApp a qualquer momento</div><span class="hc-tag">B2B</span></div>
-      <div class="h-card"><div class="hc-icon">🎟️</div><div class="hc-name">Cupons Exclusivos</div><div class="hc-desc">Condições especiais e descontos para clientes parceiros</div><span class="hc-tag">VIP</span></div>
+  </div>
+
+  <!-- HERO LOGADO (cliente recorrente) -->
+  <div class="hero-inner hero-logado" id="hero-logado" style="display:none">
+    <div class="hero-greet">
+      <div class="greet-eyebrow">👋 Bem-vindo de volta,</div>
+      <h1 class="greet-name"><span id="greet-name">cliente</span></h1>
+      <p class="greet-sub">Continue de onde parou ou faça um novo pedido.</p>
+    </div>
+    <div class="quick-actions" id="quick-actions">
+      <a href="pedido.html?repeat=last" class="qa-card qa-primary">
+        <div class="qa-icon">🔄</div>
+        <div class="qa-title">Refazer último pedido</div>
+        <div class="qa-sub">Em poucos cliques</div>
+      </a>
+      <a href="pedido.html" class="qa-card">
+        <div class="qa-icon">🛒</div>
+        <div class="qa-title">Novo pedido</div>
+        <div class="qa-sub">Catálogo completo</div>
+      </a>
+      <a href="perfil.html" class="qa-card">
+        <div class="qa-icon">📋</div>
+        <div class="qa-title">Meus pedidos</div>
+        <div class="qa-sub">Histórico e status</div>
+      </a>
     </div>
   </div>
 </section>
@@ -113,14 +128,7 @@
   <div class="container">
     <span class="section-badge">Nossos produtos</span>
     <h2 class="section-title">Confira o catálogo</h2>
-    <p class="section-sub">Lista resumida do que temos disponível. Para preços e disponibilidade, acesse o catálogo completo.</p>
-    <div style="margin-bottom:36px;padding:18px 24px;background:#F59E0B;border-radius:12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-      <span style="font-size:1.4rem;flex-shrink:0">⚠️</span>
-      <p style="font-size:.9rem;color:#1A1428;margin:0;flex:1;min-width:200px;font-weight:500">
-        <strong style="font-weight:800">Esta página não exibe preços.</strong> Os itens listados são apenas uma visão geral do catálogo.
-        Para ver disponibilidade e valores, <a href="catalogo_interno.html" style="color:#1A1428;font-weight:800;text-decoration:underline">acesse o Catálogo →</a>
-      </p>
-    </div>
+    <p class="section-sub">Visão geral do catálogo. Acesse o catálogo completo para ver preços e fazer pedido.</p>
     <div class="prod-grid" id="prod-grid">
       <div style="grid-column:1/-1;text-align:center;padding:40px;color:#4A6278">⏳ Carregando produtos...</div>
     </div>
@@ -239,6 +247,15 @@
   <div class="ft-text">© <span data-client-name></span> · Catálogo B2B<br/>Atendimento direto e pedidos online.</div>
   <a href="#" class="ft-wa" target="_blank" data-wa-link>💬 WhatsApp</a>
 </footer>
+
+<!-- ═══ STICKY CTA BAR (aparece ao rolar pra fora do hero) ═══ -->
+<div class="sticky-cta" id="sticky-cta">
+  <span class="sticky-text">Pronto pra fazer seu pedido?</span>
+  <div class="sticky-actions">
+    <a href="pedido.html" class="sticky-btn sticky-btn-primary">📋 Fazer Pedido</a>
+    <a href="#" class="sticky-btn sticky-btn-wa" target="_blank" data-wa-link data-wa-text="Olá! Tenho interesse no catálogo.">💬</a>
+  </div>
+</div>
 
 <!-- ═══ WHATSAPP FLUTUANTE ═══ -->
 <a href="#" class="wa-float" target="_blank" title="Falar no WhatsApp" data-wa-link data-wa-text="Olá! Tenho interesse no catálogo.">💬</a>
