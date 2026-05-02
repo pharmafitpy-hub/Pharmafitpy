@@ -879,24 +879,23 @@ function renderProducts() {
   const advWrap   = document.getElementById('adv-filters-wrap');
   const grid      = document.getElementById('products-grid');
   const empty     = document.getElementById('empty-state');
+  const catTitle  = document.getElementById('catalog-title');
 
-  if (hero)    hero.style.display    = navMode ? '' : 'none';
-  if (catSec)  catSec.style.display  = navMode ? '' : 'none';
-  if (chipBar) chipBar.style.display = (filtering && !searching) ? 'flex' : 'none';
-  if (advWrap) advWrap.style.display = navMode ? 'none' : '';
+  if (hero)     hero.style.display     = navMode ? '' : 'none';
+  if (catSec)   catSec.style.display   = navMode ? '' : 'none';
+  if (chipBar)  chipBar.style.display  = (filtering && !searching) ? 'flex' : 'none';
+  if (advWrap)  advWrap.style.display  = navMode ? 'none' : '';
+  if (catTitle) catTitle.style.display = navMode ? 'flex' : 'none';
 
   const recSec = document.getElementById('rec-section');
   if (navMode) {
     renderHero();
     renderCategoryTiles();
     renderRecomendados();
-    if (grid)  grid.style.display  = 'none';
-    if (empty) empty.style.display = 'none';
-    grid.innerHTML = '';
-    updateTotal();
-    return;
+    // Modo home: também mostra catálogo completo abaixo (sem chip/filtros)
+  } else {
+    if (recSec) recSec.style.display = 'none';
   }
-  if (recSec) recSec.style.display = 'none';
 
   // Atualiza chip da categoria ativa
   if (filtering && !searching) {

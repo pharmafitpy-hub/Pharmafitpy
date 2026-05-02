@@ -640,21 +640,15 @@
 
   /* ── RECOMENDADOS (carrossel horizontal de cards) ── */
   .rec-section { margin-bottom: 24px; }
+  /* Grid vertical (mini-catálogo) — não é mais scroll horizontal */
   .rec-track {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 12px;
-    overflow-x: auto;
-    scroll-snap-type: x proximity;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 6px;
-    scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
   }
-  .rec-track::-webkit-scrollbar { height: 6px; }
-  .rec-track::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  @media (min-width: 720px)  { .rec-track { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 1024px) { .rec-track { grid-template-columns: repeat(4, 1fr); } }
   .rec-card {
-    flex: 0 0 160px;
-    scroll-snap-align: start;
     background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: 14px;
@@ -663,6 +657,8 @@
     transition: transform .15s, border-color .2s, box-shadow .2s;
     position: relative;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
   .rec-card:hover {
     transform: translateY(-3px);
@@ -856,6 +852,22 @@
   .empty-icon { font-size: 3.2rem; margin-bottom: 12px; opacity: .6; }
   .empty-title { font-size: 1.05rem; font-weight: 700; color: var(--white); margin-bottom: 6px; }
   .empty-sub { font-size: .85rem; }
+
+  /* ── TÍTULO DO CATÁLOGO COMPLETO (modo home) ── */
+  .catalog-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin: 8px 0 14px;
+    border-top: 1px solid var(--border);
+    padding-top: 18px;
+  }
+  .catalog-title .cat-section-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--white);
+  }
+  .catalog-title .cat-section-sub { font-size: .72rem; color: var(--gray); }
 
   /* ── PRODUCTS GRID ── */
   .products-grid {
@@ -1952,7 +1964,7 @@
 .cart-sticky {
   position: sticky; bottom: 0; z-index: 50;
   background: linear-gradient(180deg, rgba(15,11,26,0) 0%, var(--petrol) 30%);
-  padding: 18px 0 0;
+  padding: 18px 0 calc(env(safe-area-inset-bottom, 0) + 4px);
   margin-top: 18px;
 }
 .cart-sticky .total-bar {
