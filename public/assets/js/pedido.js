@@ -885,17 +885,20 @@ function renderProducts() {
   if (catSec)   catSec.style.display   = navMode ? '' : 'none';
   if (chipBar)  chipBar.style.display  = (filtering && !searching) ? 'flex' : 'none';
   if (advWrap)  advWrap.style.display  = navMode ? 'none' : '';
-  if (catTitle) catTitle.style.display = navMode ? 'flex' : 'none';
+  if (catTitle) catTitle.style.display = 'none'; // catálogo completo só aparece no modo lista
 
   const recSec = document.getElementById('rec-section');
   if (navMode) {
     renderHero();
     renderCategoryTiles();
     renderRecomendados();
-    // Modo home: também mostra catálogo completo abaixo (sem chip/filtros)
-  } else {
-    if (recSec) recSec.style.display = 'none';
+    if (grid)  grid.style.display  = 'none';
+    if (empty) empty.style.display = 'none';
+    grid.innerHTML = '';
+    updateTotal();
+    return;
   }
+  if (recSec) recSec.style.display = 'none';
 
   // Atualiza chip da categoria ativa
   if (filtering && !searching) {
@@ -1239,6 +1242,7 @@ function renderCategoryTiles() {
           <div class="cat-tile-name">${esc(cap(cat))}</div>
           <div class="cat-tile-count">${items.length} produto(s)</div>
         </div>
+        <span class="cat-tile-arrow">→</span>
       </div>`;
   }).join('') + `
     <div class="cat-tile tile-all" onclick="verTodosProdutos()">
@@ -1247,6 +1251,7 @@ function renderCategoryTiles() {
         <div class="cat-tile-name">Ver tudo</div>
         <div class="cat-tile-count">${CATALOG.length} produto(s)</div>
       </div>
+      <span class="cat-tile-arrow">→</span>
     </div>`;
 }
 
