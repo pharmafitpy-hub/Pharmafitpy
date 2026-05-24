@@ -427,10 +427,6 @@ function getWaMsg(order) {
     'Cancelado':       `Olá ${nome}, o pedido ${id} foi cancelado. Em caso de dúvidas, entre em contato conosco.${assinatura}`,
   };
   return msgs[order.status] || `Olá ${nome}! Atualização sobre o pedido ${id}.${assinatura}`;
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> c870d4e697c99183aec0a50976e0e5002be36d41
 }
 
 // Helper compacto pro card: detecta juros no campo `parcelas` e retorna
@@ -454,11 +450,6 @@ function _calcJurosCard(parcelasStr, totalVista) {
     return { temJuros: totalCom - totalVista > 0.01, totalComJuros: totalCom };
   }
   return { temJuros: false, totalComJuros: totalVista };
-<<<<<<< HEAD
-=======
-=======
->>>>>>> a0b528bb41a9c10a82e3ac44c59b9c92f8c1a3c8
->>>>>>> c870d4e697c99183aec0a50976e0e5002be36d41
 }
 
 function renderCard(order) {
